@@ -191,15 +191,19 @@ class AIService {
       const validModels = modelsData.models || [];
       
       let targetModel = "";
-      const candidates = ["models/gemini-1.5-flash", "models/gemini-1.5-pro", "models/gemini-1.0-pro"];
+      const candidates = ["models/gemini-1.5-flash", "models/gemini-1.5-flash-latest", "models/gemini-1.5-pro", "models/gemini-1.0-pro", "models/gemini-pro"];
+      
       for (const cand of candidates) {
         if (validModels.find(m => m.name === cand && m.supportedGenerationMethods.includes("generateContent"))) {
           targetModel = cand;
           break;
         }
       }
+      
       if (!targetModel) {
-        throw new Error("你的 API 金鑰沒有任何支援文案生成的 Gemini 模型權限。");
+        const fallback = validModels.find(m => m.name.includes("gemini") && m.supportedGenerationMethods.includes("generateContent"));
+        if (fallback) targetModel = fallback.name;
+        else throw new Error("你的 API 金鑰沒有任何支援文案生成的 Gemini 模型權限。");
       }
 
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${targetModel}:generateContent?key=${this.apiKey}`, {
