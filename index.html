@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#fdfaf6" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="心語漫遊" />
+  <title>心語漫遊 · 金句記憶教練</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <!-- Google Fonts: Inter & Noto Serif TC for elegant typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body>
+
+  <!-- App Wrapper -->
+  <div id="app">
+    
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <span class="logo-icon"><i class="ph-fill ph-leaf"></i></span>
+        <span class="logo-text">心語漫遊</span>
+      </div>
+      <button class="icon-btn" onclick="openSettings()" aria-label="Settings"><i class="ph ph-gear"></i></button>
+    </header>
+
+    <!-- MAIN VIEWS CONTAINER -->
+    <main class="view-container">
+      
+      <!-- ====================== -->
+      <!-- VIEW: HOME / DASHBOARD -->
+      <!-- ====================== -->
+      <section class="view active" id="view-home">
+        <div class="hero-section">
+          <div class="hero-greeting">今天想要梳理心情嗎？</div>
+          <div class="hero-sub">大腦喜歡輕輕地複習，慢慢來就好。</div>
+        </div>
+
+        <!-- Section 1: 每日修行 -->
+        <div class="dashboard-section-title"><i class="ph-fill ph-plant"></i> 每日修行</div>
+        
+        <div class="card review-card" onclick="startDailyReview()">
+          <div class="card-icon"><i class="ph-fill ph-brain"></i></div>
+          <div class="card-content">
+            <div class="card-title">每日複習挑戰</div>
+            <div class="card-desc">有 <strong id="due-count">0</strong> 則金句正在等待重新整理</div>
+          </div>
+          <div class="card-action"><i class="ph-bold ph-caret-right"></i></div>
+        </div>
+
+        <div class="card practice-card" onclick="startPracticeRoom()">
+          <div class="card-icon"><i class="ph-fill ph-target"></i></div>
+          <div class="card-content">
+            <div class="card-title">分段溫習室</div>
+            <div class="card-desc">無壓力的毛玻璃沉浸背誦，品味細節</div>
+          </div>
+          <div class="card-action"><i class="ph-bold ph-caret-right"></i></div>
+        </div>
+
+        <div class="card quiz-card" onclick="startQuizMode()">
+          <div class="card-icon"><i class="ph-fill ph-game-controller"></i></div>
+          <div class="card-content">
+            <div class="card-title">輕量測驗館</div>
+            <div class="card-desc">隨機三合一選項，直覺式喚醒大腦</div>
+          </div>
+          <div class="card-action"><i class="ph-bold ph-caret-right"></i></div>
+        </div>
+
+        <!-- Section 2: 情緒急救 -->
+        <div class="dashboard-section-title"><i class="ph-fill ph-pill"></i> 情緒急救</div>
+        <!-- Dynamic Pills Container -->
+        <div class="pills-container" id="home-pills-container">
+          <!-- JS will inject top anchors here -->
+        </div>
+
+        <div class="card" style="background:var(--accent-calm); color:#fff;" onclick="openGacha()">
+          <div class="card-icon" style="background:rgba(255,255,255,0.2);"><i class="ph-fill ph-crystal-ball"></i></div>
+          <div class="card-content">
+            <div class="card-title">求一張陪伴卡</div>
+            <div class="card-desc" style="color:rgba(255,255,255,0.8);">把當下的情緒交給籤筒</div>
+          </div>
+          <div class="card-action" style="color:#fff;"><i class="ph-bold ph-arrow-right"></i></div>
+        </div>
+
+        <!-- Section 3: 收納與尋寶 -->
+        <div class="dashboard-section-title"><i class="ph-fill ph-books"></i> 金句與工具</div>
+        <div class="card add-card" onclick="switchView('view-add')">
+          <div class="card-icon"><i class="ph-fill ph-sparkle"></i></div>
+          <div class="card-content">
+            <div class="card-title">採集新金句</div>
+            <div class="card-desc">將觸動你的話語收編，轉化為情緒工具</div>
+          </div>
+          <div class="card-action"><i class="ph-bold ph-plus"></i></div>
+        </div>
+
+        <div class="card" onclick="openLibrary()">
+          <div class="card-icon"><i class="ph-fill ph-folders"></i></div>
+          <div class="card-content">
+            <div class="card-title">我的金句庫</div>
+            <div class="card-desc">回顧所有被收編的語錄與錨點</div>
+          </div>
+          <div class="card-action"><i class="ph-bold ph-caret-right"></i></div>
+        </div>
+
+        <!-- Stats Overview -->
+        <div class="dashboard-section-title">統計</div>
+        <div class="stats-overview">
+          <div class="stat-item">
+            <div class="stat-num" id="stat-total">0</div>
+            <div class="stat-label">總金句</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-num" id="stat-streak">0</div>
+            <div class="stat-label">連續陪伴天數</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================== -->
+      <!-- VIEW: ADD NEW QUOTE    -->
+      <!-- ====================== -->
+      <section class="view" id="view-add">
+        <div class="view-header">
+          <button class="back-btn" onclick="switchView('view-home')"><i class="ph-bold ph-caret-left"></i> 隨時返回</button>
+        </div>
+        
+        <h2 class="view-title">將觸動化為工具</h2>
+        <p class="view-subtitle">請將你想消化的金句貼在下方，我會幫你拆解它。</p>
+
+        <textarea id="quote-input" class="modern-textarea" rows="4" placeholder="例如：追求完美是拖延的偽裝..."></textarea>
+        
+        <div class="add-actions">
+          <button class="primary-btn" id="btn-analyze" onclick="processNewQuote()">
+            <span class="btn-text"><i class="ph-fill ph-sparkle"></i> 幫我拆解金句</span>
+            <span class="loading-spinner" style="display:none;"></span>
+          </button>
+        </div>
+
+        <!-- Step 2: AI Result (Anchor / Reflection) -->
+        <div class="reflection-section" id="reflection-section" style="display:none;">
+          <div class="divider"></div>
+          
+          <div class="glass-panel">
+            <div class="chunk-title">聽聽看這句話的旋律</div>
+            <div class="chunk-instruction" id="focus-instruction"></div>
+            <div class="chunked-quote" id="chunked-quote-display">
+              <!-- Chunks injected here -->
+            </div>
+            <button class="tts-btn" onclick="playTTS(currentProcessingQuote.focus_mode.chunked_quote.join('，'))">
+              <i class="ph-fill ph-speaker-high"></i> 唸給我聽
+            </button>
+          </div>
+
+          <div class="reflection-prompt-box">
+            <h3 class="reflection-title">選擇一個適合它的時刻</h3>
+            <p class="reflection-desc">為這句話綁定一個情緒錨點。你想在何時收到這句提醒？</p>
+            <div class="scenario-options" id="scenario-options">
+              <!-- Options injected here -->
+            </div>
+            <textarea id="custom-reflection" class="modern-textarea reflection-input" rows="2" placeholder="或者，隨意寫下你的感受... (可略)"></textarea>
+            
+            <button class="primary-btn confirm-btn" onclick="saveQuote()">
+              <i class="ph-fill ph-floppy-disk"></i> 儲存並成為我的工具
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================== -->
+      <!-- VIEW: DAILY REVIEW     -->
+      <!-- ====================== -->
+      <section class="view" id="view-review">
+        <div class="view-header">
+          <button class="back-btn" onclick="switchView('view-home')"><i class="ph-bold ph-caret-left"></i> 暫停</button>
+          <div class="progress-indicator">
+            <span id="review-current">1</span> / <span id="review-total">5</span>
+          </div>
+        </div>
+
+        <div class="review-container" id="review-container">
+          <!-- Emotion Wake-up -->
+          <div class="wake-up-msg" id="review-wakeup"></div>
+
+          <!-- Cloze Display -->
+          <div class="cloze-display" id="cloze-display">
+            <!-- Standard cloze injected here -->
+          </div>
+
+          <!-- Controls -->
+          <div class="review-controls">
+            <button class="tts-btn large" id="review-tts-btn">
+              🔊 聽聽原句
+            </button>
+            <button class="text-btn" id="reveal-btn" onclick="toggleReveal()">
+              👁️ 看原句
+            </button>
+          </div>
+          
+          <div class="original-reveal" id="original-reveal" style="display:none;"></div>
+
+          <!-- Grade Buttons -->
+          <div class="grade-section" id="grade-section" style="opacity: 0.5; pointer-events: none;">
+            <p class="grade-prompt">剛剛回想起來的感覺如何？</p>
+            <div class="grade-buttons">
+              <button class="grade-btn forgot" onclick="submitGrade('forgot')">完全想不起來<br><small>大腦正在重組中，沒關係</small></button>
+              <button class="grade-btn medium" onclick="submitGrade('medium')">一點點印象<br><small>我們正在建立神經連結</small></button>
+              <button class="grade-btn easy" onclick="submitGrade('easy')">很順暢<br><small>你已經掌握它了</small></button>
+            </div>
+          </div>
+          
+          <div class="encouragement-msg" id="encouragement-msg" style="display:none;"></div>
+        </div>
+        
+        <div class="review-complete" id="review-complete" style="display:none;">
+          <div class="complete-icon"><i class="ph-fill ph-confetti"></i></div>
+          <h2>今日的陪伴已完成</h2>
+          <p>潛移默化中，這些話語正成為你的力量。</p>
+          <button class="primary-btn" onclick="switchView('view-home')">回到首頁</button>
+        </div>
+      </section>
+
+      <!-- ====================== -->
+      <!-- VIEW: CHUNKING MODE    -->
+      <!-- ====================== -->
+      <section class="view" id="view-chunking">
+        <div class="view-header">
+          <button class="back-btn" onclick="exitChunkingMode()"><i class="ph-bold ph-x"></i> 結束分段</button>
+          <div class="progress-indicator">
+            <span id="chunk-current">1</span> / <span id="chunk-total">3</span>
+          </div>
+        </div>
+
+        <div class="chunking-container">
+          <div class="chunk-focus-area" id="chunk-focus-area">
+            <div class="chunk-text-display" id="chunk-text-display"></div>
+          </div>
+          
+          <div class="chunk-instruction-text" id="chunk-instruction-text">
+            請專注在心裡默唸這段話
+          </div>
+
+          <div class="chunk-controls">
+            <div id="chunk-state-show" class="chunk-state-panel">
+              <button class="tts-btn" id="chunk-tts-btn" style="margin: 0 auto 16px;"><i class="ph-fill ph-speaker-high"></i> 聽語音</button>
+              <button class="primary-btn" onclick="maskCurrentChunk()" style="width: 100%; justify-content: center;">我記住了，遮住它 <i class="ph-bold ph-eye-closed"></i></button>
+            </div>
+            
+            <div id="chunk-state-hide" class="chunk-state-panel" style="display:none;">
+              <button class="primary-btn" onclick="revealCurrentChunk()" style="background:#fff; color:var(--text-primary); border:2px solid var(--bg-secondary); width: 100%; justify-content: center;">打開看答案 <i class="ph-bold ph-eye"></i></button>
+            </div>
+            
+            <div id="chunk-state-reveal" class="chunk-state-panel" style="display:none;">
+              <button class="primary-btn" onclick="nextChunk()" style="width: 100%; justify-content: center;">接續：下一段 <i class="ph-bold ph-arrow-right"></i></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================== -->
+      <!-- VIEW: LIBRARY          -->
+      <!-- ====================== -->
+      <section class="view" id="view-library">
+        <div class="view-header">
+          <button class="back-btn" onclick="switchView('view-home')"><i class="ph-bold ph-caret-left"></i> 返回</button>
+        </div>
+        <h2 class="view-title">我的情緒工具箱</h2>
+        
+        <div class="library-chips" id="library-chips">
+          <!-- Categories injected here -->
+        </div>
+        
+        <div class="library-grid" id="library-grid">
+          <!-- Cards injected here -->
+        </div>
+      </section>
+
+      <!-- ====================== -->
+      <!-- VIEW: GACHA            -->
+      <!-- ====================== -->
+      <section class="view" id="view-gacha">
+        <div class="view-header">
+          <button class="back-btn" onclick="switchView('view-home')"><i class="ph-bold ph-x"></i> 取消</button>
+        </div>
+        <div class="gacha-prompt" id="gacha-prompt-text">深呼吸... 告訴我現在的心情？</div>
+        <div class="gacha-options" id="gacha-options">
+          <!-- Chips injected here -->
+        </div>
+        
+        <div class="gacha-result" id="gacha-result">
+          <div class="lib-card">
+            <div class="lib-card-quote" id="gacha-quote-display"></div>
+            <button class="tts-btn" style="margin: 0 auto;" id="gacha-tts-btn">🔊 唸給我聽</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================== -->
+      <!-- VIEW: OMNI QUIZ        -->
+      <!-- ====================== -->
+      <section class="view" id="view-quiz">
+        <div class="view-header">
+          <button class="back-btn" onclick="exitQuizMode()"><i class="ph-bold ph-x"></i> 結束測驗</button>
+          <div class="progress-indicator">
+            <span id="quiz-current">1</span> / <span id="quiz-total">5</span>
+          </div>
+        </div>
+        
+        <div class="quiz-container" id="quiz-container">
+          <div class="quiz-hint" id="quiz-hint-display">這句話最適合哪個情境？</div>
+          
+          <div class="quiz-prompt glass-panel" id="quiz-prompt-display">
+            <!-- Question Text -->
+          </div>
+          
+          <div class="quiz-options-grid" id="quiz-options-grid">
+            <!-- Options injected by JS -->
+          </div>
+        </div>
+        
+        <div class="review-complete" id="quiz-complete" style="display:none;">
+          <div class="complete-icon"><i class="ph-fill ph-shooting-star"></i></div>
+          <h2>測驗滿分完成</h2>
+          <p>太棒了！你的大腦又長出了幾條堅韌的神經迴路 🌱</p>
+          <button class="primary-btn" onclick="switchView('view-home')">收下這股力量，回首頁</button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ====================== -->
+    <!-- VIEW: SLIDESHOW (Full) -->
+    <!-- ====================== -->
+    <section id="view-slideshow">
+      <button class="slide-close" onclick="closeSlideshow()"><i class="ph-bold ph-x"></i></button>
+      <div class="slide-content">
+        <div class="slide-anchor-label" id="slide-anchor-label">焦慮時</div>
+        <div class="slide-quote" id="slide-quote-display"></div>
+        <div class="slide-nav">
+          <button class="slide-nav-btn" onclick="prevSlide()"><i class="ph-bold ph-caret-left"></i></button>
+          <button class="tts-btn large" style="background:rgba(255,255,255,0.1); color:#fff; border-color:rgba(255,255,255,0.2);" id="slide-tts-btn"><i class="ph-fill ph-speaker-high"></i></button>
+          <button class="slide-nav-btn" onclick="nextSlide()"><i class="ph-bold ph-caret-right"></i></button>
+        </div>
+      </div>
+      <div style="position:absolute; bottom:20px; color:rgba(255,255,255,0.3); font-size:0.8rem;" id="slide-counter">1 / 5</div>
+    </section>
+
+    <!-- ====================== -->
+    <!-- SETTINGS MODAL         -->
+    <!-- ====================== -->
+    <div class="modal-overlay" id="settings-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>設定</h3>
+          <button class="close-btn" onclick="closeSettings()"><i class="ph-bold ph-x"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="gemini-key">Gemini API Key <i class="ph-bold ph-key"></i></label>
+            <p class="help-text">所有文字拆解由 Google Gemini 提供。你的金鑰將安全地儲存於本機瀏覽器中，不會上傳至任何伺服器。</p>
+            <input type="password" id="gemini-key" class="modern-input" placeholder="AIzaSy..." />
+          </div>
+          
+          <div class="form-group" style="margin-top: 24px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 16px;">
+            <label>資料備份與管理 <i class="ph-bold ph-database"></i></label>
+            <p class="help-text">防止心血結晶遺失，建議將專屬金句匯出為本機檔案。若重新安裝或換設備，可上傳還原。</p>
+            <div style="display:flex; gap:12px; margin-top:12px;">
+              <button class="primary-btn" style="flex:1; background:var(--bg-secondary); border:1px solid rgba(0,0,0,0.1); color:var(--text-primary);" onclick="exportData()"><i class="ph-bold ph-download-simple"></i> 匯出備份</button>
+              <button class="primary-btn" style="flex:1; background:var(--bg-secondary); border:1px solid rgba(0,0,0,0.1); color:var(--text-primary);" onclick="document.getElementById('import-file').click()"><i class="ph-bold ph-upload-simple"></i> 匯入還原</button>
+              <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+            </div>
+          </div>
+          
+          <div class="sys-prompt-preview" style="margin-top: 24px;">
+            <small>AI 教練系統設定：<br>專精認知心理學、ADHD 友善與克服完美主義。</small>
+          </div>
+
+          <button class="primary-btn" onclick="saveSettings()">儲存設定</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- ====================== -->
+    <!-- GLOBAL AMBIENT PLAYER  -->
+    <!-- ====================== -->
+    <div id="yt-player-container" style="position:absolute; width:0; height:0; top:-9999px; left:-9999px;"></div>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    
+    <div id="ambient-widget" class="ambient-widget">
+      <!-- Expand button -->
+      <button class="ambient-toggle" id="ambient-toggle-btn" onclick="toggleAmbientPanel()">
+        <i class="ph-bold ph-headphones" id="ambient-main-icon"></i>
+      </button>
+      
+      <!-- Panel content -->
+      <div class="ambient-panel glass-panel" id="ambient-panel">
+        <div class="ambient-header">
+          <small>🎧 沉浸靈魂頻段</small>
+        </div>
+        
+        <!-- Collapsible Dropdown -->
+        <button class="ambient-dropdown-btn" id="ambient-dropdown-btn" onclick="toggleTracksList()">
+          <span>🎵 選擇播放頻道...</span>
+          <i class="ph-bold ph-caret-down"></i>
+        </button>
+        
+        <div class="ambient-tracks hidden" id="ambient-tracks-container">
+          <!-- buttons injected by js -->
+        </div>
+        
+        <div class="ambient-volume">
+          <i class="ph-fill ph-speaker-low"></i>
+          <input type="range" id="ambient-volume-slider" min="0" max="1" step="0.05" value="0.3" oninput="changeAmbientVolume()">
+          <i class="ph-fill ph-speaker-high"></i>
+        </div>
+        <button class="ambient-stop-btn" onclick="stopAmbient()"><i class="ph-bold ph-stop"></i> 停止播放</button>
+      </div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+  </div>
+
+  <script src="ai-service.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

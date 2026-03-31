@@ -1,0 +1,1125 @@
+// Core App State & Logic
+let quotesDb = JSON.parse(localStorage.getItem('hw_quotes')) || [];
+let currentProcessingQuote = null;
+let currentReviewSession = [];
+let reviewIndex = 0;
+
+/* --- UI Logic & Routing --- */
+function switchView(viewId) {
+  // Haptic feedback
+  if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(15);
+  
+  // Stop speaking when switching views
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.getElementById(viewId).classList.add('active');
+  
+  if (viewId === 'view-home') {
+    updateDashboard();
+  }
+}
+
+function updateDashboard() {
+  document.getElementById('stat-total').textContent = quotesDb.length;
+  
+  // Calculate due for today
+  const now = new Date().getTime();
+  const dueQuotes = quotesDb.filter(q => q.nextReviewDate <= now);
+  document.getElementById('due-count').textContent = dueQuotes.length;
+  
+  // Fake Streak logic based on daily log
+  const streak = localStorage.getItem('hw_streak') || 0;
+  document.getElementById('stat-streak').textContent = streak;
+  
+  if (typeof renderHomePills === 'function') {
+    renderHomePills();
+  }
+}
+
+let toastQueue = [];
+let isToastShowing = false;
+
+function showToast(message) {
+  toastQueue.push(message);
+  processToastQueue();
+}
+
+function processToastQueue() {
+  if (isToastShowing || toastQueue.length === 0) return;
+  
+  isToastShowing = true;
+  const message = toastQueue.shift();
+  const toast = document.getElementById('toast');
+  
+  toast.textContent = message;
+  toast.classList.add('show');
+  
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => {
+      isToastShowing = false;
+      processToastQueue();
+    }, 400); // wait for CSS transition
+  }, 3000);
+}
+
+/* --- Settings Modal --- */
+function openSettings() {
+  document.getElementById('settings-modal').classList.add('active');
+  document.getElementById('gemini-key').value = localStorage.getItem('gemini_api_key') || '';
+}
+
+function closeSettings() {
+  document.getElementById('settings-modal').classList.remove('active');
+}
+
+function saveSettings() {
+  const key = document.getElementById('gemini-key').value.trim();
+  if (key) {
+    aiService.setKey(key);
+    showToast('🔑 API Key 儲存成功');
+  } else {
+    showToast('已清除 API Key');
+    localStorage.removeItem('gemini_api_key');
+  }
+  closeSettings();
+}
+
+/* --- Data Backup & Restore --- */
+function exportData() {
+  if (quotesDb.length === 0) {
+    showToast('目前沒有金句可以匯出喔！');
+    return;
+  }
+  
+  const data = { quotes: quotesDb, streak: localStorage.getItem('hw_streak') || 0 };
+  const dataStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `heart-whisper-backup-${dateStr}.json`;
+  a.click();
+  
+  URL.revokeObjectURL(url);
+  showToast('💾 備份檔案已成功下載！');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  if (!confirm('⚠️ 警告：匯入新的備份檔將會「完全覆蓋」目前所有的金句與紀錄，確定要繼續嗎？')) {
+    event.target.value = '';
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const importedData = JSON.parse(e.target.result);
+      
+      // Support raw array (old formats maybe) or object {quotes: [], streak: 0}
+      if (Array.isArray(importedData)) {
+        quotesDb = importedData;
+      } else if (importedData.quotes && Array.isArray(importedData.quotes)) {
+        quotesDb = importedData.quotes;
+        if(importedData.streak) localStorage.setItem('hw_streak', importedData.streak);
+      } else {
+        throw new Error('不支援的檔案格式，請確認是否為心語漫遊備份檔。');
+      }
+      
+      localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
+      
+      showToast('📥 備份資料已成功還原！');
+      updateDashboard();
+      closeSettings();
+      switchView('view-home');
+      
+    } catch (err) {
+      console.error(err);
+      showToast('❌ 匯入失敗與檔案錯誤：' + err.message);
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+/* --- ADD NEW QUOTE (PHASE 1) --- */
+async function processNewQuote() {
+  const btn = document.getElementById('btn-analyze');
+  const inputEl = document.getElementById('quote-input');
+  const text = inputEl.value.trim();
+  
+  if (!text) {
+    showToast('請先輸入你要記憶的金句');
+    return;
+  }
+  
+  if (!aiService.hasKey()) {
+    showToast('請先點擊右上角設定 API 金鑰');
+    openSettings();
+    return;
+  }
+
+  btn.disabled = true;
+  btn.querySelector('.btn-text').innerHTML = '<i class="ph-fill ph-wind"></i> 正在溫柔拆解中...';
+  btn.querySelector('.loading-spinner').style.display = 'inline-block';
+  
+  try {
+    const aiResult = await aiService.processNewQuote(text);
+    
+    currentProcessingQuote = {
+      id: Date.now().toString(),
+      original: text,
+      addedAt: Date.now(),
+      nextReviewDate: Date.now(), // 立刻即可複習（方便初次體驗與強化記憶）
+      history: [],
+      ...aiResult // merges focus_mode, cloze_versions, reflection_anchor
+    };
+    
+    // Render Step 2
+    renderAIAnchorStage(currentProcessingQuote);
+    
+  } catch (err) {
+    console.error(err);
+    showToast('拆解失敗：' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.querySelector('.btn-text').innerHTML = '<i class="ph-fill ph-sparkle"></i> 幫我拆解金句';
+    btn.querySelector('.loading-spinner').style.display = 'none';
+  }
+}
+
+function renderAIAnchorStage(quoteObj) {
+  document.getElementById('reflection-section').style.display = 'block';
+  
+  // Render Chunks
+  document.getElementById('focus-instruction').textContent = quoteObj.focus_mode.micro_task;
+  const chunkContainer = document.getElementById('chunked-quote-display');
+  chunkContainer.innerHTML = '';
+  quoteObj.focus_mode.chunked_quote.forEach(chunk => {
+    const span = document.createElement('span');
+    span.className = 'chunk-line';
+    span.textContent = chunk;
+    chunkContainer.appendChild(span);
+  });
+  
+  // Render Reflection
+  const optionsContainer = document.getElementById('scenario-options');
+  optionsContainer.innerHTML = '';
+  quoteObj.reflection_anchor.suggested_scenarios.forEach((scenario, i) => {
+    const div = document.createElement('div');
+    div.className = 'scenario-chip';
+    div.textContent = scenario;
+    div.onclick = () => {
+      document.querySelectorAll('.scenario-chip').forEach(el => el.classList.remove('selected'));
+      div.classList.add('selected');
+      document.getElementById('custom-reflection').value = scenario;
+    };
+    optionsContainer.appendChild(div);
+  });
+}
+
+function saveQuote() {
+  const customRef = document.getElementById('custom-reflection').value.trim();
+  if(!currentProcessingQuote.user_anchor) {
+     currentProcessingQuote.user_anchor = customRef || currentProcessingQuote.reflection_anchor.suggested_scenarios[0];
+  }
+  
+  quotesDb.push(currentProcessingQuote);
+  localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
+  
+  showToast('🌸 金句已收錄為你的專屬工具！');
+  
+  // Cleanup
+  document.getElementById('quote-input').value = '';
+  document.getElementById('reflection-section').style.display = 'none';
+  currentProcessingQuote = null;
+  
+  switchView('view-home');
+}
+
+/* --- DAILY REVIEW (PHASE 2 & 3) --- */
+function startDailyReview() {
+  const now = new Date().getTime();
+  currentReviewSession = quotesDb.filter(q => q.nextReviewDate <= now);
+  
+  if(currentReviewSession.length === 0) {
+    showToast('現在沒有需要複習的金句喔！先休息一下吧。');
+    return;
+  }
+  
+  reviewIndex = 0;
+  switchView('view-review');
+  renderReviewCard();
+}
+
+function renderReviewCard() {
+  if (reviewIndex >= currentReviewSession.length) {
+    // Review complete
+    document.getElementById('review-container').style.display = 'none';
+    document.getElementById('review-complete').style.display = 'block';
+    
+    // Update streak (dummy logic)
+    const currentStreak = parseInt(localStorage.getItem('hw_streak') || '0', 10);
+    localStorage.setItem('hw_streak', currentStreak + 1);
+    
+    return;
+  }
+  
+  document.getElementById('review-container').style.display = 'block';
+  document.getElementById('review-complete').style.display = 'none';
+  document.getElementById('review-current').textContent = reviewIndex + 1;
+  document.getElementById('review-total').textContent = currentReviewSession.length;
+  
+  const q = currentReviewSession[reviewIndex];
+  
+  // Emotion Wake up
+  document.getElementById('review-wakeup').textContent = `記得嗎？這是你打算「${q.user_anchor}」時，對自己說的話。`;
+  
+  // Render Cloze carefully (replace [] with text inputs)
+  const clozeText = q.cloze_versions.standard || q.cloze_versions.low_pressure;
+  
+  // Replace [text] with interactive inputs with dynamic resizer wrapper
+  const html = clozeText.replace(/\[(.*?)\]/g, (match, p1) => {
+    const minChars = Math.max(3, p1.length); 
+    return `<span class="cloze-resizer" data-value="" style="--min-chars: ${minChars}">
+              <input type="text" class="cloze-input" data-answer="${p1}" placeholder="" oninput="this.parentNode.dataset.value = this.value; checkClozeInput(this);">
+            </span>`;
+  });
+  
+  document.getElementById('cloze-display').innerHTML = html;
+  
+  // Reset grade buttons & reveal
+  document.getElementById('original-reveal').style.display = 'none';
+  document.getElementById('original-reveal').textContent = '';
+  document.getElementById('original-reveal').classList.remove('fade-in-up');
+  document.getElementById('encouragement-msg').style.display = 'none';
+  
+  document.getElementById('grade-section').style.opacity = '0.5';
+  document.getElementById('grade-section').style.pointerEvents = 'none';
+  
+  const revealBtn = document.getElementById('reveal-btn');
+  if (revealBtn) revealBtn.innerHTML = '<i class="ph-fill ph-eye"></i> 看原句';
+  
+  // TTS Bind
+  document.getElementById('review-tts-btn').onclick = () => playTTS(q.original);
+}
+
+function toggleReveal() {
+  const oRev = document.getElementById('original-reveal');
+  const gradeSec = document.getElementById('grade-section');
+  const revealBtn = document.getElementById('reveal-btn');
+  const inputs = document.querySelectorAll('.cloze-input');
+  
+  const isRevealed = oRev.style.display === 'block';
+
+  if (isRevealed) {
+    // Hide original sentence
+    oRev.style.display = 'none';
+    oRev.classList.remove('fade-in-up');
+    if (revealBtn) revealBtn.innerHTML = '<i class="ph-fill ph-eye"></i> 看原句';
+    
+    // Check if the user had already gotten it completely correct naturally
+    const allCorrect = Array.from(inputs).every(el => el.classList.contains('correct'));
+    
+    if (!allCorrect) {
+      // Revert inputs that were auto-revealed
+      inputs.forEach(el => {
+        if (el.classList.contains('revealed')) {
+          el.value = '';
+          el.parentNode.dataset.value = '';
+          el.classList.remove('revealed');
+          el.readOnly = false;
+        }
+      });
+      // Hide grade section again
+      gradeSec.style.opacity = '0.5';
+      gradeSec.style.pointerEvents = 'none';
+    }
+  } else {
+    // Show original sentence
+    if (revealBtn) revealBtn.innerHTML = '<i class="ph-fill ph-eye-closed"></i> 收起原句';
+    
+    // Auto-fill all inputs revealing the answer
+    inputs.forEach(el => {
+      if (!el.classList.contains('correct')) {
+        el.value = el.getAttribute('data-answer');
+        el.parentNode.dataset.value = el.value; // Sync resizer
+        el.classList.add('revealed');
+        el.readOnly = true;
+      }
+    });
+    
+    oRev.style.display = 'block';
+    oRev.classList.add('fade-in-up');
+    
+    gradeSec.style.opacity = '1';
+    gradeSec.style.pointerEvents = 'auto';
+    
+    const q = currentReviewSession[reviewIndex];
+    oRev.textContent = q.original;
+  }
+}
+
+function checkClozeInput(el) {
+  // Strip punctuation for a more forgiving and low-friction comparison
+  const ans = el.getAttribute('data-answer').replace(/[^\w\u4e00-\u9fa5]/gi, '').toLowerCase();
+  const val = el.value.replace(/[^\w\u4e00-\u9fa5]/gi, '').toLowerCase();
+  
+  if (val && val === ans) {
+    if (!el.classList.contains('correct')) {
+      el.value = el.getAttribute('data-answer'); // Auto-format with correct casing/punctuation
+      el.parentNode.dataset.value = el.value; // Sync resizer
+      el.classList.add('correct');
+      el.readOnly = true; 
+      
+      // Haptic feedback for mobile devices
+      if (window.navigator && window.navigator.vibrate) {
+        window.navigator.vibrate(40);
+      }
+      
+      checkAllCorrect();
+    }
+  } else {
+    el.classList.remove('correct');
+  }
+}
+
+function checkAllCorrect() {
+  const inputs = document.querySelectorAll('.cloze-input');
+  const allCorrect = Array.from(inputs).every(el => el.classList.contains('correct'));
+  
+  if (allCorrect) {
+    // Short delay before showing final UI to let them enjoy the last 'pop' animation
+    setTimeout(() => {
+      toggleReveal();
+      showToast('太強了！完全正確 ✨');
+    }, 500);
+  }
+}
+
+function submitGrade(grade) {
+  const q = currentReviewSession[reviewIndex];
+  const now = new Date().getTime();
+  
+  // Calculate next interval based on grade
+  let nextIntervalHours = 24; // Default 1 day
+  if (grade === 'easy') nextIntervalHours = 72; // 3 days
+  if (grade === 'medium') nextIntervalHours = 24; // 1 day
+  if (grade === 'forgot') nextIntervalHours = 4; // Soon
+  
+  // Update DB quote
+  const dbIdx = quotesDb.findIndex(dbq => dbq.id === q.id);
+  if(dbIdx > -1) {
+    quotesDb[dbIdx].nextReviewDate = now + (nextIntervalHours * 60 * 60 * 1000);
+    quotesDb[dbIdx].history.push({ date: now, grade: grade });
+    localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
+  }
+  
+  // Show Encouragement
+  const encMsg = document.getElementById('encouragement-msg');
+  encMsg.textContent = aiService.generateEncouragement(grade);
+  encMsg.style.display = 'block';
+  encMsg.style.marginTop = '16px';
+  encMsg.style.padding = '12px';
+  encMsg.style.borderRadius = '12px';
+  encMsg.style.background = '#fdfaf6';
+  encMsg.style.color = '#76736e';
+  
+  document.getElementById('grade-section').style.opacity = '0.5';
+  document.getElementById('grade-section').style.pointerEvents = 'none';
+  
+  // Auto next slide after delay
+  setTimeout(() => {
+    reviewIndex++;
+    renderReviewCard();
+  }, 3500);
+}
+
+/* --- TTS Service (Web Speech API) --- */
+function playTTS(text) {
+  if (!('speechSynthesis' in window)) {
+    showToast('抱歉，你的瀏覽器不支援語音功能。');
+    return;
+  }
+  
+  // Stop existing speech
+  window.speechSynthesis.cancel();
+  
+  const msg = new SpeechSynthesisUtterance();
+  msg.text = text;
+  msg.lang = 'zh-TW';
+  msg.rate = 0.8; // Gentle, slower rate for ADHD/anxiety calming
+  msg.pitch = 1.0;
+  
+  const voices = window.speechSynthesis.getVoices();
+  const zhVoice = voices.find(v => v.lang.includes('zh-TW') || v.lang.includes('zh-CN'));
+  if (zhVoice) msg.voice = zhVoice;
+  
+  window.speechSynthesis.speak(msg);
+}
+
+/* --- CHUNKING MODE (DEEP PRACTICE ROOM) --- */
+let currentPracticeSession = [];
+let practiceIndex = 0;
+let activeChunkQuote = null;
+let currentChunkIndex = 0;
+
+function startPracticeRoom() {
+  if (quotesDb.length === 0) {
+    showToast('你的金句庫還是空的喔！先去採集一句吧 ✨');
+    return;
+  }
+
+  const validQuotes = quotesDb.filter(q => q.focus_mode && q.focus_mode.chunked_quote && q.focus_mode.chunked_quote.length > 0);
+  
+  if (validQuotes.length === 0) {
+    showToast('目前沒有可供分段溫習的金句喔！');
+    return;
+  }
+  
+  // Randomly pick up to 5 quotes for deep practice
+  currentPracticeSession = validQuotes.sort(() => 0.5 - Math.random()).slice(0, 5);
+  practiceIndex = 0;
+  
+  switchView('view-chunking');
+  loadPracticeQuote();
+}
+
+function loadPracticeQuote() {
+  activeChunkQuote = currentPracticeSession[practiceIndex];
+  currentChunkIndex = 0;
+  renderChunkStage();
+}
+
+function exitChunkingMode() {
+  activeChunkQuote = null;
+  switchView('view-home');
+}
+
+function renderChunkStage() {
+  const chunks = activeChunkQuote.focus_mode.chunked_quote;
+  
+  // End of chunks check
+  if (currentChunkIndex >= chunks.length) {
+    practiceIndex++;
+    if (practiceIndex < currentPracticeSession.length) {
+      showToast('超棒！緊接著溫習下一句 ✨');
+      loadPracticeQuote();
+    } else {
+      showToast('🎉 今天的溫習已全部完成！心靈充電完畢');
+      exitChunkingMode();
+    }
+    return;
+  }
+  
+  document.getElementById('chunk-current').textContent = currentChunkIndex + 1;
+  document.getElementById('chunk-total').textContent = chunks.length;
+  
+  const chunkText = chunks[currentChunkIndex];
+  const displayEl = document.getElementById('chunk-text-display');
+  
+  displayEl.textContent = chunkText;
+  displayEl.classList.remove('text-blur');
+  
+  document.getElementById('chunk-instruction-text').textContent = '先慢慢讀過一次這段話';
+  
+  document.getElementById('chunk-state-show').style.display = 'flex';
+  document.getElementById('chunk-state-hide').style.display = 'none';
+  document.getElementById('chunk-state-reveal').style.display = 'none';
+  
+  document.getElementById('chunk-tts-btn').onclick = () => playTTS(chunkText);
+}
+
+function maskCurrentChunk() {
+  const displayEl = document.getElementById('chunk-text-display');
+  displayEl.classList.add('text-blur');
+  
+  document.getElementById('chunk-instruction-text').textContent = '現在，請在心裡試著把剛剛那句話默想出來';
+  
+  document.getElementById('chunk-state-show').style.display = 'none';
+  document.getElementById('chunk-state-hide').style.display = 'flex';
+}
+
+function revealCurrentChunk() {
+  const displayEl = document.getElementById('chunk-text-display');
+  displayEl.classList.remove('text-blur');
+  
+  document.getElementById('chunk-instruction-text').textContent = '跟你想的一樣嗎？';
+  
+  document.getElementById('chunk-state-hide').style.display = 'none';
+  document.getElementById('chunk-state-reveal').style.display = 'flex';
+  
+  // Check if this was the last chunk
+  const chunks = activeChunkQuote.focus_mode.chunked_quote;
+  const nextBtn = document.querySelector('#chunk-state-reveal .primary-btn');
+  if (currentChunkIndex >= chunks.length - 1) {
+    nextBtn.innerHTML = '太棒了！點此完成拼圖 <i class="ph-fill ph-puzzle-piece"></i>';
+  } else {
+    nextBtn.innerHTML = '接續：下一段 <i class="ph-bold ph-arrow-right"></i>';
+  }
+}
+
+function nextChunk() {
+  window.speechSynthesis.cancel();
+  currentChunkIndex++;
+  renderChunkStage();
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  updateDashboard();
+  // Attempt to load voices early
+  if (window.speechSynthesis) {
+    window.speechSynthesis.getVoices();
+  }
+});
+
+/* --- NEW FEATURES: EMOTIONAL ANCHOR SYSTEM --- */
+
+function getUniqueAnchors() {
+  const anchors = {};
+  quotesDb.forEach(q => {
+    if (q.user_anchor) {
+      anchors[q.user_anchor] = (anchors[q.user_anchor] || 0) + 1;
+    }
+  });
+  // Return sorted array of objects [{anchor: '...', count: 3}, ...]
+  return Object.keys(anchors).map(k => ({ anchor: k, count: anchors[k] }))
+         .sort((a,b) => b.count - a.count);
+}
+
+// 1. Home Pills
+function renderHomePills() {
+  const container = document.getElementById('home-pills-container');
+  if (!container) return;
+  container.innerHTML = '';
+  const sortedAnchors = getUniqueAnchors().slice(0, 5); // Top 5
+  
+  if (sortedAnchors.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding: 20px;">
+        <i class="ph-fill ph-leaf"></i>
+        <p>還沒有情緒標籤，快去採集一句吧！</p>
+      </div>`;
+    return;
+  }
+  
+  sortedAnchors.forEach(item => {
+    const btn = document.createElement('button');
+    btn.className = 'pill-btn';
+    btn.innerHTML = `<i class="ph-fill ph-pill"></i> ${item.anchor} (${item.count})`;
+    btn.onclick = () => openSlideshow(item.anchor);
+    container.appendChild(btn);
+  });
+}
+
+// 2. Library
+function openLibrary() {
+  if (quotesDb.length === 0) {
+    showToast('金句庫還是空的喔！先去採集一句吧 ✨');
+    return;
+  }
+  switchView('view-library');
+  renderLibrary('全部');
+}
+
+function renderLibrary(activeAnchor) {
+  const chipsContainer = document.getElementById('library-chips');
+  const gridContainer = document.getElementById('library-grid');
+  
+  const allAnchors = getUniqueAnchors();
+  
+  // Render Chips
+  chipsContainer.innerHTML = '';
+  
+  const allChip = document.createElement('div');
+  allChip.className = `lib-chip ${activeAnchor === '全部' ? 'active' : ''}`;
+  allChip.textContent = `全部 (${quotesDb.length})`;
+  allChip.onclick = () => renderLibrary('全部');
+  chipsContainer.appendChild(allChip);
+  
+  allAnchors.forEach(item => {
+    const chip = document.createElement('div');
+    chip.className = `lib-chip ${activeAnchor === item.anchor ? 'active' : ''}`;
+    chip.textContent = `${item.anchor} (${item.count})`;
+    chip.onclick = () => renderLibrary(item.anchor);
+    chipsContainer.appendChild(chip);
+  });
+  
+  // Render Cards
+  gridContainer.innerHTML = '';
+  const filteredQuotes = activeAnchor === '全部' 
+    ? [...quotesDb].reverse() 
+    : quotesDb.filter(q => q.user_anchor === activeAnchor).reverse();
+    
+  if (filteredQuotes.length === 0) {
+    gridContainer.innerHTML = `
+      <div class="empty-state">
+        <i class="ph-fill ph-wind"></i>
+        <p>這個分類還沒有金句喔！<br>先去採集一些，或是感受一下這份留白。</p>
+      </div>
+    `;
+    return;
+  }
+    
+  filteredQuotes.forEach(q => {
+    const card = document.createElement('div');
+    card.className = 'lib-card';
+    card.innerHTML = `
+      <div class="lib-card-quote">${q.original}</div>
+      <div class="lib-card-meta">
+        <span>📍 ${q.user_anchor || '無標籤'}</span>
+        <button class="icon-btn" onclick="playTTS('${q.original}')">🔊</button>
+      </div>
+    `;
+    gridContainer.appendChild(card);
+  });
+}
+
+// 3. Slideshow
+let currentSlides = [];
+let slideIndex = 0;
+
+function openSlideshow(anchor) {
+  if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(15);
+  currentSlides = quotesDb.filter(q => q.user_anchor === anchor);
+  if(currentSlides.length === 0) return;
+  slideIndex = 0;
+  
+  // Display modal
+  document.getElementById('view-slideshow').classList.add('active');
+  renderSlide();
+}
+
+function closeSlideshow() {
+  document.getElementById('view-slideshow').classList.remove('active');
+  window.speechSynthesis.cancel();
+}
+
+function renderSlide() {
+  const q = currentSlides[slideIndex];
+  document.getElementById('slide-anchor-label').textContent = `—— 當你感到 ${q.user_anchor} ——`;
+  
+  const quoteDisplay = document.getElementById('slide-quote-display');
+  // re-trigger animation 
+  quoteDisplay.style.animation = 'none';
+  quoteDisplay.offsetHeight; /* trigger reflow */
+  quoteDisplay.style.animation = null; 
+  
+  quoteDisplay.textContent = q.original;
+  
+  document.getElementById('slide-counter').textContent = `${slideIndex + 1} / ${currentSlides.length}`;
+  
+  document.getElementById('slide-tts-btn').onclick = () => playTTS(q.original);
+}
+
+function nextSlide() {
+  window.speechSynthesis.cancel();
+  if (slideIndex < currentSlides.length - 1) {
+    slideIndex++;
+    renderSlide();
+  } else {
+    showToast('這已經是最後一句囉');
+  }
+}
+
+function prevSlide() {
+  window.speechSynthesis.cancel();
+  if (slideIndex > 0) {
+    slideIndex--;
+    renderSlide();
+  }
+}
+
+// 4. Gacha
+function openGacha() {
+  if (quotesDb.length === 0) {
+    showToast('籤筒裡還有沒有籤喔！請先採集新金句 🔮');
+    return;
+  }
+  switchView('view-gacha');
+  
+  // Reset UI
+  document.getElementById('gacha-result').classList.remove('reveal');
+  document.getElementById('gacha-options').style.display = 'flex';
+  document.getElementById('gacha-prompt-text').textContent = '深呼吸... 告訴我現在的心情？';
+  
+  const optionsContainer = document.getElementById('gacha-options');
+  optionsContainer.innerHTML = '';
+  
+  const anchors = getUniqueAnchors();
+  anchors.forEach(item => {
+    const chip = document.createElement('div');
+    chip.className = 'scenario-chip';
+    chip.textContent = item.anchor;
+    chip.onclick = () => drawGacha(item.anchor);
+    optionsContainer.appendChild(chip);
+  });
+}
+
+function drawGacha(anchor) {
+  // Hide options
+  document.getElementById('gacha-options').style.display = 'none';
+  const promptText = document.getElementById('gacha-prompt-text');
+  promptText.textContent = '命運正在為你挑選那一句話...🔮';
+  
+  const filtered = quotesDb.filter(q => q.user_anchor === anchor);
+  const randomMsg = filtered[Math.floor(Math.random() * filtered.length)];
+  
+  setTimeout(() => {
+    promptText.textContent = `🪐 送給正感到「${anchor}」的你`;
+    
+    const resultDiv = document.getElementById('gacha-result');
+    document.getElementById('gacha-quote-display').textContent = randomMsg.original;
+    document.getElementById('gacha-tts-btn').onclick = () => playTTS(randomMsg.original);
+    
+    resultDiv.classList.add('reveal');
+    playTTS(randomMsg.original); // Auto play for immediate soothing
+  }, 1500);
+}
+
+/* --- Omni Quiz Logic (Lightweight Multiple Choice) --- */
+let quizQuestions = [];
+let currentQuizIndex = 0;
+let isQuizAnimating = false;
+
+function startQuizMode() {
+  if (quotesDb.length < 3) {
+    showToast('需要至少收集 3 個金句，才能啟動測驗館喔！');
+    return;
+  }
+  
+  switchView('view-quiz');
+  document.getElementById('quiz-container').style.display = 'flex';
+  document.getElementById('quiz-complete').style.display = 'none';
+  
+  generateQuizSession();
+  currentQuizIndex = 0;
+  renderQuizQuestion();
+}
+
+function exitQuizMode() {
+  switchView('view-home');
+}
+
+function shuffleArray(arr) {
+  return arr.slice().sort(() => Math.random() - 0.5);
+}
+
+function getRandomDistractors(sourceArray, correctValue, count = 3) {
+  const uniqueItems = [...new Set(sourceArray)].filter(i => i && i !== correctValue && String(i).trim() !== '');
+  const shuffled = shuffleArray(uniqueItems);
+  
+  // Fallbacks if not enough unique data
+  const defaults = ['平靜', '愛自己', '無常', '接受', '勇敢開始', '專注當下', '深呼吸', '往前走'];
+  let distractors = shuffled.slice(0, count);
+  let trys = 0;
+  
+  while (distractors.length < count && trys < 20) {
+    const fallback = defaults[Math.floor(Math.random() * defaults.length)];
+    if (!distractors.includes(fallback) && fallback !== correctValue) {
+      distractors.push(fallback);
+    }
+    trys++;
+  }
+  return distractors;
+}
+
+function generateQuizSession() {
+  const sessionSize = Math.min(5, quotesDb.length);
+  const selectedQuotes = shuffleArray(quotesDb).slice(0, sessionSize);
+  
+  // Create pools for distractors
+  const allAnchors = quotesDb.map(q => q.user_anchor);
+  const allWords = quotesDb.flatMap(q => q.focus_mode?.cloze_points?.map(c => c.word) || []);
+  const allSeconds = quotesDb.map(q => {
+    const parts = q.original.split(/[，。；！]/);
+    return parts.length > 1 ? parts.slice(1).join('，') : q.original.substring(Math.floor(q.original.length/2));
+  });
+
+  quizQuestions = selectedQuotes.map(q => {
+    let type = ['A', 'B', 'C'][Math.floor(Math.random() * 3)];
+    let prompt, correct, distractors, hint;
+    
+    // Fallbacks if data missing
+    if (type === 'A' && (!q.focus_mode || !q.focus_mode.cloze_points || q.focus_mode.cloze_points.length === 0)) type = 'B';
+    if (type === 'C' && q.original.length < 8) type = 'B';
+    
+    if (type === 'A') {
+      hint = '【文字填空】找回失落的記憶碎片';
+      correct = q.focus_mode.cloze_points[0].word;
+      prompt = q.original.replace(correct, '<span class="quiz-cloze-blank" id="quiz-blank"></span>');
+      distractors = getRandomDistractors(allWords, correct, 3);
+    } else if (type === 'B') {
+      hint = '【情緒配對】這句話最適合接住哪種情緒？';
+      correct = q.user_anchor || '無法定義的心情';
+      prompt = q.original;
+      distractors = getRandomDistractors(allAnchors, correct, 3);
+    } else { // Type C
+      hint = '【接龍拼圖】這句話的下半部是？';
+      const parts = q.original.split(/[，。；！]/);
+      if (parts.length > 1 && parts[1].trim() !== '') {
+        prompt = parts[0] + '，...';
+        correct = parts.slice(1).join('，').trim() || parts[1].trim();
+      } else {
+        const mid = Math.floor(q.original.length/2);
+        prompt = q.original.substring(0, mid) + '...';
+        correct = q.original.substring(mid).trim();
+      }
+      distractors = getRandomDistractors(allSeconds, correct, 3);
+    }
+    
+    // Fallback if somehow distractors are empty, add dummy
+    if(distractors.length===0) distractors = ['選項 X', '選項 Y', '選項 Z'];
+    
+    const options = shuffleArray([correct, ...distractors]);
+    return { type, hint, prompt, correct, options, orgQuote: q };
+  });
+}
+
+function renderQuizQuestion() {
+  isQuizAnimating = false;
+  document.getElementById('quiz-current').textContent = currentQuizIndex + 1;
+  document.getElementById('quiz-total').textContent = quizQuestions.length;
+  
+  const qObj = quizQuestions[currentQuizIndex];
+  document.getElementById('quiz-hint-display').textContent = qObj.hint;
+  document.getElementById('quiz-prompt-display').innerHTML = qObj.prompt;
+  
+  const optionsGrid = document.getElementById('quiz-options-grid');
+  optionsGrid.innerHTML = '';
+  
+  qObj.options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'quiz-btn';
+    btn.textContent = opt;
+    btn.onclick = () => submitQuizAnswer(btn, opt, qObj);
+    optionsGrid.appendChild(btn);
+  });
+}
+
+function submitQuizAnswer(btn, chosenOpt, qObj) {
+  if (isQuizAnimating) return;
+  isQuizAnimating = true;
+  
+  if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(10);
+  
+  const isCorrect = (chosenOpt === qObj.correct);
+  
+  if (isCorrect) {
+    btn.classList.add('correct');
+    if (qObj.type === 'A') {
+      const blank = document.getElementById('quiz-blank');
+      if (blank) {
+        blank.textContent = chosenOpt;
+        blank.classList.add('filled');
+      }
+    }
+    
+    // Soft reward: delay next review smoothly
+    qObj.orgQuote.nextReviewDate = new Date().getTime() + (12 * 60 * 60 * 1000);
+    localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
+    
+    setTimeout(() => {
+      moveToNextQuiz();
+    }, 1200);
+  } else {
+    btn.classList.add('wrong');
+    setTimeout(() => {
+      isQuizAnimating = false;
+    }, 500); // Wait for shake anim
+  }
+}
+
+function moveToNextQuiz() {
+  currentQuizIndex++;
+  if (currentQuizIndex >= quizQuestions.length) {
+    // Show complete
+    document.getElementById('quiz-container').style.display = 'none';
+    document.getElementById('quiz-complete').style.display = 'block';
+    
+    // Simulate streak increment if this is their first big action today
+    if (localStorage.getItem('hw_streak') === null) {
+      localStorage.setItem('hw_streak', '1');
+    }
+    updateDashboard();
+  } else {
+    renderQuizQuestion();
+  }
+}
+
+/* --- Ambient Soundscapes (YouTube Player) --- */
+const ambientTracks = [
+  { name: '🕊️ Palm tv', icon: 'ph-hands-praying', type: 'video', id: 'eUm8MeIp1LE' },
+  { 
+    name: '✨ 明歌中文', 
+    icon: 'ph-sparkle', 
+    type: 'random_video', 
+    videoList: [
+      '1LJ2_YqFwEk', '--7f763-9U8', '-xFrC_najcA', '04mjPeU9VRk', '0IKN_IK8WYg', 
+      '0Iy-UdRNfuQ', '0rO7__AmWP8', '1SlzARLud18', '29Sz8Qgi_OI', '2JF3H91JeOw', 
+      '3r9YLSKJ1NM', '4JEsRlsIEMY', '4hejRjKVq1w', '5lASNO-Z9ns', '5qG1JdRmofQ', 
+      '7Fqz5mMS43Q', '8LlbGFbOx0M', '8zE1Zx9pXP0', '9cVZEjXOUQQ'
+    ] 
+  },
+  { name: '🌟 古典空靈', icon: 'ph-star', type: 'video', id: 'UH6d5mMOiM4' },
+  { name: '🌙 北歐空靈', icon: 'ph-moon-stars', type: 'video', id: '62HFhFEEvZI' },
+  { name: '☕ Lofi Girl (24/7)', icon: 'ph-coffee', type: 'video', id: 'jfKfPfyJRdk' },
+  { name: '🛋️ Chillhop 爵士', icon: 'ph-armchair', type: 'video', id: '5yx6BWlEVcY' },
+  { name: '📖 早晨 Bossa', icon: 'ph-book-open', type: 'video', id: 'lTRiuFIWV54' },
+  { name: '🌧️ 窗外驟雨', icon: 'ph-cloud-rain', type: 'video', id: 'mPZkdNFkNps' },
+  { name: '🔥 溫暖柴火', icon: 'ph-fire', type: 'video', id: 'L_LUpnjgPso' },
+  { name: '🌲 森林蟲鳴', icon: 'ph-tree', type: 'video', id: 'xNN7iTA57jM' },
+  { name: '🌊 規律海浪', icon: 'ph-waves', type: 'video', id: 'Nep1qytq9JM' },
+  { name: '🧠 雙腦波專注', icon: 'ph-brain', type: 'video', id: 'WPni755-Krg' }
+];
+
+let ytPlayer;
+let ytPlayerReady = false;
+let currentAmbientTrack = -1;
+let ambientFadeInterval;
+
+window.onYouTubeIframeAPIReady = function() {
+  ytPlayer = new YT.Player('yt-player-container', {
+    height: '0',
+    width: '0',
+    videoId: '', // empty default
+    playerVars: {
+      'autoplay': 0, 'controls': 0, 'disablekb': 1,
+      'fs': 0, 'modestbranding': 1, 'playsinline': 1, 'rel': 0
+    },
+    events: {
+      'onReady': () => {
+        ytPlayerReady = true;
+        initAmbientPlayerUI();
+      },
+      'onStateChange': (e) => {
+        if (e.data === YT.PlayerState.ENDED) {
+           if (currentAmbientTrack >= 0 && ambientTracks[currentAmbientTrack].type === 'random_video') {
+             const track = ambientTracks[currentAmbientTrack];
+             const randomId = track.videoList[Math.floor(Math.random() * track.videoList.length)];
+             ytPlayer.loadVideoById({'videoId': randomId});
+           } else {
+             ytPlayer.playVideo(); // Enforce infinite loop for single videos
+           }
+        }
+      }
+    }
+  });
+};
+
+function initAmbientPlayerUI() {
+  const container = document.getElementById('ambient-tracks-container');
+  if (!container) return;
+  container.innerHTML = '';
+  ambientTracks.forEach((track, index) => {
+    const btn = document.createElement('button');
+    btn.className = 'ambient-track-btn';
+    btn.id = `ambient-btn-${index}`;
+    btn.innerHTML = `<i class="ph-fill ${track.icon}"></i> ${track.name}`;
+    btn.onclick = () => playAmbientTrack(index);
+    container.appendChild(btn);
+  });
+  
+  const volSlider = document.getElementById('ambient-volume-slider');
+  if (volSlider && ytPlayerReady) {
+    ytPlayer.setVolume(parseFloat(volSlider.value) * 100);
+  }
+}
+
+function toggleAmbientPanel() {
+  const widget = document.getElementById('ambient-widget');
+  widget.classList.toggle('open');
+}
+
+function toggleTracksList() {
+  const container = document.getElementById('ambient-tracks-container');
+  container.classList.toggle('hidden');
+}
+
+function playAmbientTrack(index) {
+  if (!ytPlayerReady) { 
+    showToast('YouTube 播放器正在載入，請稍候...'); 
+    return; 
+  }
+  
+  const toggleBtn = document.getElementById('ambient-toggle-btn');
+  const targetVol = parseFloat(document.getElementById('ambient-volume-slider').value) * 100;
+  
+  document.querySelectorAll('.ambient-track-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`ambient-btn-${index}`).classList.add('active');
+  toggleBtn.classList.add('playing');
+  
+  const track = ambientTracks[index];
+  document.getElementById('ambient-dropdown-btn').innerHTML = `<span><i class="ph-fill ${track.icon}"></i> ${track.name}</span><i class="ph-bold ph-caret-down"></i>`;
+  document.getElementById('ambient-tracks-container').classList.add('hidden');
+  
+  if (currentAmbientTrack === index) {
+    if (ytPlayer.getPlayerState() !== YT.PlayerState.PLAYING) {
+      ytPlayer.playVideo();
+      fadeVolumeTo(targetVol);
+    }
+    return;
+  }
+  
+  currentAmbientTrack = index;
+  
+  ytPlayer.setVolume(0);
+  if (track.type === 'playlist') {
+    ytPlayer.loadPlaylist({
+      listType: 'playlist',
+      list: track.listId,
+      index: 0,
+      startSeconds: 0
+    });
+    ytPlayer.setLoop(true); // Loop entire playlist
+  } else if (track.type === 'random_video') {
+    const randomId = track.videoList[Math.floor(Math.random() * track.videoList.length)];
+    ytPlayer.loadVideoById({'videoId': randomId});
+  } else {
+    ytPlayer.loadVideoById({'videoId': track.id});
+  }
+  
+  fadeVolumeTo(targetVol);
+}
+
+function stopAmbient() {
+  if (!ytPlayerReady) return;
+  document.querySelectorAll('.ambient-track-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('ambient-toggle-btn').classList.remove('playing');
+  
+  fadeVolumeTo(0, () => {
+    ytPlayer.pauseVideo();
+  });
+}
+
+function fadeVolumeTo(targetVal, onComplete) {
+  clearInterval(ambientFadeInterval);
+  let vol = ytPlayer.getVolume() || 0;
+  const step = (targetVal > vol) ? 5 : -5;
+  
+  ambientFadeInterval = setInterval(() => {
+    vol += step;
+    if ((step > 0 && vol >= targetVal) || (step < 0 && vol <= targetVal)) {
+      ytPlayer.setVolume(targetVal);
+      clearInterval(ambientFadeInterval);
+      if (onComplete) onComplete();
+    } else {
+      ytPlayer.setVolume(vol);
+    }
+  }, 50);
+}
+
+function changeAmbientVolume() {
+  if (!ytPlayerReady) return;
+  const val = parseFloat(document.getElementById('ambient-volume-slider').value) * 100;
+  if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) {
+    ytPlayer.setVolume(val);
+  }
+}
