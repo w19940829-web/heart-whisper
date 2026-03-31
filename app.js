@@ -451,8 +451,11 @@ function playTTS(text) {
   // Stop existing speech
   window.speechSynthesis.cancel();
   
+  // 濾除會被朗讀出雜音的干擾標點與括號，保護聆聽心流
+  const cleanText = text.replace(/[<>＜＞\[\]【】()（）]/g, '');
+  
   const msg = new SpeechSynthesisUtterance();
-  msg.text = text;
+  msg.text = cleanText;
   msg.lang = 'zh-TW';
   msg.rate = 0.8; // Gentle, slower rate for ADHD/anxiety calming
   msg.pitch = 1.0;
