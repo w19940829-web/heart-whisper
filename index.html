@@ -111,6 +111,15 @@
           <div class="card-action"><i class="ph-bold ph-caret-right"></i></div>
         </div>
 
+        <div class="card" style="background:var(--bg-secondary);" onclick="switchView('view-metaphor'); if(typeof MetaphorApp !== 'undefined') MetaphorApp.init();">
+          <div class="card-icon"><i class="ph-fill ph-pen-nib"></i></div>
+          <div class="card-content">
+            <div class="card-title">提煉比喻</div>
+            <div class="card-desc">輸入長文，萃取絕美的明喻與暗喻成知識卡</div>
+          </div>
+          <div class="card-action"><i class="ph-bold ph-caret-right"></i></div>
+        </div>
+
         <!-- Stats Overview -->
         <div class="dashboard-section-title">統計</div>
         <div class="stats-overview">
@@ -334,6 +343,60 @@
         </div>
       </section>
 
+      <!-- ====================== -->
+      <!-- VIEW: METAPHOR (提煉比喻) -->
+      <!-- ====================== -->
+      <section class="view" id="view-metaphor">
+        <div class="view-header">
+          <button class="back-btn" onclick="switchView('view-home')"><i class="ph-bold ph-caret-left"></i> 返回</button>
+        </div>
+        
+        <h2 class="view-title">提煉比喻 <span style="font-size: 0.9rem; color: var(--text-secondary); margin-left:8px;">💡 新視角</span></h2>
+        
+        <!-- Toggle Tabs -->
+        <div class="metaphor-tabs">
+          <button class="metaphor-tab active" id="mtab-extract" onclick="MetaphorApp.switchTab('extract')">
+            <i class="ph-fill ph-funnel"></i> 煉金區
+          </button>
+          <button class="metaphor-tab" id="mtab-library" onclick="MetaphorApp.switchTab('library')">
+            <i class="ph-fill ph-cards"></i> 靈感庫
+          </button>
+        </div>
+
+        <!-- 萃取區 -->
+        <div id="mview-extract" class="metaphor-subview">
+          <p class="view-subtitle" style="margin-top:16px;">請貼上一段長文，AI 或系統會為您過濾出極具美感的比喻句。</p>
+          <textarea id="metaphor-input" class="modern-textarea" rows="6" placeholder="貼上文章內容..."></textarea>
+          
+          <button class="primary-btn" id="btn-extract-metaphor" onclick="MetaphorApp.processExtraction()">
+            <span class="btn-text"><i class="ph-fill ph-sparkle"></i> 開始自動提煉</span>
+            <span class="loading-spinner" style="display:none;" id="m-spinner"></span>
+          </button>
+
+          <!-- 審查草稿區 -->
+          <div class="metaphor-draft-zone" id="metaphor-draft-zone" style="display:none; margin-top:24px;">
+            <div class="divider"></div>
+            <h3 class="reflection-title" style="margin-bottom: 8px;">📋 提煉結果 (草稿區)</h3>
+            <p class="reflection-desc" style="margin-bottom: 16px;">請親自審核這些果實。您可以修改標籤、寫下心得，並決定是否收納。</p>
+            <div id="metaphor-drafts-container">
+              <!-- 草稿卡片由 JS 注入 -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 比喻庫區 -->
+        <div id="mview-library" class="metaphor-subview" style="display:none;">
+          <!-- 標籤雲 -->
+          <div class="metaphor-tag-cloud" id="metaphor-tag-cloud" style="margin-top:16px; margin-bottom: 24px;">
+            <!-- 標籤注入區 -->
+          </div>
+          
+          <div class="library-grid" id="metaphor-library-grid">
+            <!-- 永久比喻卡片由 JS 注入 -->
+          </div>
+        </div>
+      </section>
+
     </main>
 
     <!-- ====================== -->
@@ -431,6 +494,7 @@
   </div>
 
   <script src="ai-service.js"></script>
+  <script src="metaphor.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

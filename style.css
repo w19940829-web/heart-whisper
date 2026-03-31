@@ -1171,4 +1171,143 @@ body {
   .ambient-panel {
     background: rgba(40, 38, 36, 0.85);
   }
+  .m-draft-card {
+    background: var(--bg-secondary);
+    border-color: var(--accent-calm);
+  }
+  .m-draft-note {
+    background: var(--bg-primary) !important;
+    border-color: rgba(255,255,255,0.1) !important;
+    color: var(--text-primary);
+  }
+  .metaphor-tab.active {
+    background: var(--bg-secondary);
+  }
+  .metaphor-tabs {
+    background: rgba(0,0,0,0.2);
+  }
+}
+
+/* --- Metaphor View --- */
+.metaphor-tabs {
+  display: flex;
+  background: var(--bg-secondary);
+  border-radius: 30px;
+  padding: 4px;
+  margin-bottom: var(--spacing-md);
+}
+
+.metaphor-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 10px;
+  border-radius: 26px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.metaphor-tab.active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.m-draft-card {
+  background: #ffffff;
+  border-left: 4px solid var(--accent-calm);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.m-draft-quote {
+  font-family: 'Noto Serif TC', serif;
+  font-size: 1.15rem;
+  line-height: 1.6;
+}
+
+.m-draft-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.m-draft-tag {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  border: 1px solid rgba(0,0,0,0.05);
+  transition: all 0.2s;
+}
+
+.m-draft-tag:hover {
+  background: #ffdbdb;
+  color: #d14949;
+  border-color: #ffdbdb;
+}
+
+.m-draft-tag.add-tag-btn {
+  background: transparent;
+  border: 1px dashed var(--accent-calm);
+  color: var(--accent-calm);
+}
+.m-draft-tag.add-tag-btn:hover {
+  background: var(--accent-calm);
+  color: #fff;
+}
+
+.m-draft-note {
+  font-size: 0.9rem;
+  padding: 10px 12px;
+  border: 1px dashed rgba(0,0,0,0.15);
+  border-radius: 8px;
+  background: #fafafa;
+  width: 100%;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+
+.m-draft-note:focus {
+  outline: none;
+  border-color: var(--accent-calm);
+  background: #fff;
+}
+
+.m-draft-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.m-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

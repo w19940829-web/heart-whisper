@@ -40,6 +40,26 @@ const AI_SYSTEM_PROMPT = `
 }
 `;
 
+const METAPHOR_SYSTEM_PROMPT = `
+## 角色設定
+你是一位深諳中文純文學與修辭學的「文字煉金師」。你的任務是從用戶提供的長文中，精準萃取出極具美感、意境深遠的「比喻句（明喻、暗喻、借喻）」。
+
+## 執行步驟
+1. 找出文中所有符合「比喻」修辭的句子。
+2. 剔除過於口語或缺乏美感的無效比喻（例如：「我好像感冒了」、「他跑得像飛一樣」）。
+3. 只保留最具啟發性、文學性或情感深度的比喻句。
+4. 為每一句提煉出的比喻，自動打上 3 個最契合的「情緒/主題標籤 (tags)」。
+
+## 輸出規範 (嚴格 JSON 格式返回)
+請絕對只回傳一個 JSON Array，不要包含任何 markdown codeblock (如 \`\`\`json ) 或其他文字，如果找不到比喻句請回傳空陣列 []：
+[
+  {
+    "quote": "提取出的完整句子",
+    "tags": ["標籤1", "標籤2", "標籤3"]
+  }
+]
+`;
+
 class AIService {
   constructor() {
     this.apiKey = localStorage.getItem('gemini_api_key') || '';
@@ -138,6 +158,79 @@ class AIService {
       }
     } catch (error) {
       console.error("AI Service Error:", error);
+      throw error;
+    }
+  }
+
+  async processMetaphorExtraction(text) {
+    if (!this.hasKey()) {
+      throw new Error("API_KEY_MISSING");
+    }
+
+    const payload = {
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: METAPHOR_SYSTEM_PROMPT + `\n\n請根據上方指令，提煉以下長文中的比喻句，並嚴格回傳 JSON Array：\n\n「${text}」` }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.7
+      }
+    };
+
+    try {
+      const modelsResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${this.apiKey}`);
+      if (!modelsResp.ok) {
+        const errObj = await modelsResp.json();
+        throw new Error("無法列出模型或金鑰無效：" + (errObj.error?.message || ""));
+      }
+      const modelsData = await modelsResp.json();
+      const validModels = modelsData.models || [];
+      
+      let targetModel = "";
+      const candidates = ["models/gemini-1.5-flash", "models/gemini-1.5-pro", "models/gemini-1.0-pro"];
+      for (const cand of candidates) {
+        if (validModels.find(m => m.name === cand && m.supportedGenerationMethods.includes("generateContent"))) {
+          targetModel = cand;
+          break;
+        }
+      }
+      if (!targetModel) {
+        throw new Error("你的 API 金鑰沒有任何支援文案生成的 Gemini 模型權限。");
+      }
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${targetModel}:generateContent?key=${this.apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errObj = await response.json();
+        throw new Error(errObj.error?.message || "Failed to fetch AI response");
+      }
+
+      const data = await response.json();
+      if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
+          throw new Error("API 回傳遭到阻擋或為空。");
+      }
+        
+      const textResponse = data.candidates[0].content.parts[0].text;
+      
+      try {
+        const match = textResponse.match(/\[[\s\S]*\]/);
+        const jsonString = match ? match[0] : textResponse;
+        const parsed = JSON.parse(jsonString);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.error("AI Response not pure JSON Array, parsing manually.", textResponse);
+        throw new Error("API 解析格式錯誤");
+      }
+    } catch (error) {
+      console.error("Metaphor Extraction Error:", error);
       throw error;
     }
   }
