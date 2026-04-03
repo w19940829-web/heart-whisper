@@ -148,6 +148,72 @@ function importData(event) {
   reader.readAsText(file);
 }
 
+async function batchUpgradeOldQuotes() {
+  if (!aiService.hasKey()) {
+    showToast('請先填寫上方 Gemini API Key 才能執行升級喔！');
+    return;
+  }
+  
+  const oldQuotes = quotesDb.filter(q => !q.category);
+  if (oldQuotes.length === 0) {
+    showToast('所有金句都已經是最新版本囉！✨');
+    return;
+  }
+  
+  if (!confirm(`找到 ${oldQuotes.length} 句還沒有能量標籤的金句，請問是否要開始升級？這可能會需要跑一陣子喔！`)) {
+    return;
+  }
+  
+  const btn = document.getElementById('btn-batch-upgrade');
+  if(btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span class="loading-spinner" style="display:inline-block; margin-right:8px;"></span> 升級中... (0/${oldQuotes.length})`;
+  }
+  
+  let successCount = 0;
+  for (let i = 0; i < oldQuotes.length; i++) {
+    const q = oldQuotes[i];
+    try {
+      if(btn) btn.innerHTML = `<span class="loading-spinner" style="display:inline-block; margin-right:8px;"></span> 升級中... (${i+1}/${oldQuotes.length})`;
+      
+      const res = await aiService.processNewQuote(q.original);
+      
+      // Update original object in quotesDb (safely by finding its index)
+      const dbIdx = quotesDb.findIndex(dbq => dbq.id === q.id);
+      if (dbIdx > -1) {
+        quotesDb[dbIdx] = { ...quotesDb[dbIdx], ...res };
+        
+        // Re-align tags manually if they were put into user_anchor initially
+        if (!quotesDb[dbIdx].user_anchor || quotesDb[dbIdx].user_anchor === '未分類' || quotesDb[dbIdx].user_anchor === '#未分類') {
+          const tags = res.reflection_anchor?.suggested_tags || res.reflection_anchor?.suggested_scenarios || ["#未分類"];
+          quotesDb[dbIdx].user_anchor = tags[0];
+        }
+
+        // Save progress immediately so if it fails midway, we don't lose the processed ones
+        localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
+        successCount++;
+      }
+      
+      // Rate limiting mitigation: wait ~2000ms
+      await new Promise(r => setTimeout(r, 2000));
+      
+    } catch(err) {
+      console.warn(`升級失敗 (ID: ${q.id}): `, err);
+      // Wait a bit longer if it's an error block
+      await new Promise(r => setTimeout(r, 4000));
+    }
+  }
+  
+  if(btn) {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="ph-fill ph-rocket-launch"></i> 升級完成 (${successCount}/${oldQuotes.length})`;
+    setTimeout(() => { btn.innerHTML = `<i class="ph-fill ph-rocket-launch"></i> 開始自動升級`; }, 3000);
+  }
+  
+  showToast(`✅ 完成！成功升級 ${successCount} 句金句`);
+  updateDashboard();
+}
+
 /* --- ADD NEW QUOTE (PHASE 1) --- */
 async function processNewQuote() {
   const btn = document.getElementById('btn-analyze');
@@ -211,7 +277,8 @@ function renderAIAnchorStage(quoteObj) {
   // Render Reflection
   const optionsContainer = document.getElementById('scenario-options');
   optionsContainer.innerHTML = '';
-  quoteObj.reflection_anchor.suggested_scenarios.forEach((scenario, i) => {
+  const tags = quoteObj.reflection_anchor.suggested_tags || quoteObj.reflection_anchor.suggested_scenarios || ["#預設標籤"];
+  tags.forEach((scenario, i) => {
     const div = document.createElement('div');
     div.className = 'scenario-chip';
     div.textContent = scenario;
@@ -227,7 +294,8 @@ function renderAIAnchorStage(quoteObj) {
 function saveQuote() {
   const customRef = document.getElementById('custom-reflection').value.trim();
   if(!currentProcessingQuote.user_anchor) {
-     currentProcessingQuote.user_anchor = customRef || currentProcessingQuote.reflection_anchor.suggested_scenarios[0];
+     const tags = currentProcessingQuote.reflection_anchor.suggested_tags || currentProcessingQuote.reflection_anchor.suggested_scenarios || ["#未分類"];
+     currentProcessingQuote.user_anchor = customRef || tags[0];
   }
   
   quotesDb.push(currentProcessingQuote);
@@ -616,7 +684,16 @@ function renderHomePills() {
   sortedAnchors.forEach(item => {
     const btn = document.createElement('button');
     btn.className = 'pill-btn';
-    btn.innerHTML = `<i class="ph-fill ph-pill"></i> ${item.anchor} (${item.count})`;
+    
+    // 試圖從現有金句中找一個含有此標籤的 Emoji 做代表
+    const exampleQ = quotesDb.find(q => q.user_anchor === item.anchor);
+    let emoji = '💡';
+    if (exampleQ && exampleQ.reflection_anchor && exampleQ.reflection_anchor.action_emoji) {
+      emoji = exampleQ.reflection_anchor.action_emoji;
+    } else if (item.anchor.includes('焦慮')) emoji = '🌙';
+    else if (item.anchor.includes('接納') || item.anchor.includes('愛')) emoji = '💗';
+    
+    btn.innerHTML = `<span style="margin-right:4px;">${emoji}</span> ${item.anchor} <small style="opacity:0.6">(${item.count})</small>`;
     btn.onclick = () => openSlideshow(item.anchor);
     container.appendChild(btn);
   });
@@ -672,9 +749,34 @@ function renderLibrary(activeAnchor) {
   }
     
   filteredQuotes.forEach(q => {
+    const cat = q.category || '無分類';
+    const energy = q.energy_level || 'low'; //預設
+    let emoji = '💡';
+    if (q.reflection_anchor && q.reflection_anchor.action_emoji) {
+      emoji = q.reflection_anchor.action_emoji;
+    }
+
+    let energySymbol = '🟢';
+    let energyText = '陪伴';
+    if (energy.includes('medium')) { energySymbol = '🟡'; energyText = '引導'; }
+    if (energy.includes('high')) { energySymbol = '🔴'; energyText = '激勵'; }
+
+    let catClass = '';
+    if (cat.includes('療癒')) catClass = 'cat-healing';
+    else if (cat.includes('靈修')) catClass = 'cat-spiritual';
+    else if (cat.includes('激勵')) catClass = 'cat-action';
+    else if (cat.includes('生活')) catClass = 'cat-life';
+
     const card = document.createElement('div');
-    card.className = 'lib-card';
+    card.className = `lib-card ${catClass}`;
     card.innerHTML = `
+      <div class="lib-card-header">
+        <div class="lib-card-badges">
+          <span class="lib-badge energy-badge" title="${energyText}">${energySymbol}</span>
+          <span class="lib-badge cat-badge">${cat}</span>
+        </div>
+        <div class="lib-emoji">${emoji}</div>
+      </div>
       <div class="lib-card-quote">${q.original}</div>
       <div class="lib-card-meta">
         <span>📍 ${q.user_anchor || '無標籤'}</span>

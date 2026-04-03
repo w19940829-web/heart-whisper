@@ -763,7 +763,56 @@ body {
   padding: 16px;
   border-radius: 16px;
   box-shadow: var(--card-shadow);
+  transition: transform 0.2s, background 0.3s;
 }
+
+/* Category Backgrounds */
+.cat-healing { background: linear-gradient(145deg, #f4f9f6, #ffffff); border-left: 4px solid #a3b1a6; }
+.cat-action { background: linear-gradient(145deg, #fffaf4, #ffffff); border-left: 4px solid #d4bda5; }
+.cat-spiritual { background: linear-gradient(145deg, #fbfafc, #ffffff); border-left: 4px solid #b8b3c9; }
+.cat-life { background: linear-gradient(145deg, #fafafa, #ffffff); border-left: 4px solid #d9d9d9; }
+
+/* Enhanced Card Internals */
+.lib-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.lib-card-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.lib-badge {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.energy-badge {
+  background: rgba(0,0,0,0.04);
+  color: var(--text-secondary);
+}
+.cat-badge {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.lib-emoji {
+  font-size: 1.4rem;
+  background: rgba(255,255,255,0.8);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
 .lib-card-quote {
   font-family: 'Noto Serif TC', serif;
   font-size: 1.1rem;

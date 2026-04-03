@@ -24,6 +24,8 @@ const AI_SYSTEM_PROMPT = `
 {
   "status": "new_quote_added",
   "original_quote": "完整金句內容",
+  "category": "從[靈修陪伴, 情緒療癒, 激勵行動, 生活體悟]選一",
+  "energy_level": "從[low, medium, high]選一 (low=溫和共情, medium=引導反思, high=激勵突破)",
   "focus_mode": {
     "chunked_quote": ["短句 1", "短句 2"],
     "micro_task": "專注力引導詞 (例如：請只聽一遍這兩句音律)"
@@ -33,7 +35,8 @@ const AI_SYSTEM_PROMPT = `
     "standard": "帶有 [ ] 的標準版本"
   },
   "reflection_anchor": {
-    "suggested_scenarios": ["情境選項 A", "情境選項 B"],
+    "suggested_tags": ["兩個能代表剛句話的精準標籤，如「#焦慮內耗」、「#接納自我」"],
+    "action_emoji": "一個最適合應用這句話情境的單一 Emoji，例如 🌙、🗣️ 或 📝",
     "reflection_template": "當我遇到 [____] 的麻煩時，我要讀這句話，因為 [____]。",
     "perfect_ism_antidote": "針對完美主義或壞脾氣的特定反思引導詞"
   }

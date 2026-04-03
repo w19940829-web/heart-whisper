@@ -441,6 +441,14 @@
               <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
             </div>
           </div>
+
+          <div class="form-group" style="margin-top: 24px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 16px;">
+            <label>舊資料 AI 智能升級 <i class="ph-bold ph-sparkle"></i></label>
+            <p class="help-text">尋找缺乏「能量分類與顏色」的舊金句，呼叫 AI 幫忙補上最新的色彩與標籤。執行時請稍候片刻喔！</p>
+            <button class="primary-btn" id="btn-batch-upgrade" style="width:100%; justify-content:center; margin-top:12px;" onclick="batchUpgradeOldQuotes()">
+              <i class="ph-fill ph-rocket-launch"></i> 開始自動升級
+            </button>
+          </div>
           
           <div class="sys-prompt-preview" style="margin-top: 24px;">
             <small>AI 教練系統設定：<br>專精認知心理學、ADHD 友善與克服完美主義。</small>
