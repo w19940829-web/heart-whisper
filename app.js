@@ -206,13 +206,16 @@ async function batchUpgradeOldQuotes() {
     return;
   }
   
-  const oldQuotes = quotesDb.filter(q => !q.category);
+  // Old categories were: 信仰微光, 情緒療癒, 激勵行動, 生活體悟
+  const oldCats = ['信仰微光', '情緒療癒', '激勵行動', '生活體悟'];
+  const oldQuotes = quotesDb.filter(q => !q.category || oldCats.includes(q.category));
+  
   if (oldQuotes.length === 0) {
     showToast('所有金句都已經是最新版本囉！✨');
     return;
   }
   
-  if (!confirm(`找到 ${oldQuotes.length} 句還沒有能量標籤的金句，請問是否要開始升級？這可能會需要跑一陣子喔！`)) {
+  if (!confirm(`找到 ${oldQuotes.length} 句還沒有功能分類的金句，請問是否要開始升級？這可能會需要跑一陣子喔！`)) {
     return;
   }
   
@@ -269,6 +272,7 @@ async function batchUpgradeOldQuotes() {
   
   showToast(`✅ 完成！成功升級 ${successCount} 句金句`);
   updateDashboard();
+  if (typeof renderLibrary === 'function') renderLibrary();
 }
 
 /* --- ADD NEW QUOTE (PHASE 1) --- */
