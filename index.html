@@ -283,8 +283,14 @@
         </div>
         <h2 class="view-title">我的情緒工具箱</h2>
         
-        <div class="library-chips" id="library-chips">
-          <!-- Categories injected here -->
+        <div class="library-filter-wrapper" style="margin-bottom: 16px;">
+          <select id="library-category-select" class="form-input" style="width: 100%; font-weight: 700; color: var(--text-dark); background-color: var(--croc-foam); border: 1.5px solid var(--croc-mist);" onchange="renderLibrary(this.value)">
+            <option value="全部">📂 全部金句</option>
+            <option value="信仰微光">✨ 信仰微光</option>
+            <option value="情緒療癒">🩹 情緒療癒</option>
+            <option value="激勵行動">🔥 激勵行動</option>
+            <option value="生活體悟">🌱 生活體悟</option>
+          </select>
         </div>
         
         <div class="library-grid" id="library-grid">

@@ -709,34 +709,18 @@ function openLibrary() {
   renderLibrary('全部');
 }
 
-function renderLibrary(activeAnchor) {
-  const chipsContainer = document.getElementById('library-chips');
+function renderLibrary(activeCategory) {
   const gridContainer = document.getElementById('library-grid');
-  
-  const allAnchors = getUniqueAnchors();
-  
-  // Render Chips
-  chipsContainer.innerHTML = '';
-  
-  const allChip = document.createElement('div');
-  allChip.className = `lib-chip ${activeAnchor === '全部' ? 'active' : ''}`;
-  allChip.textContent = `全部 (${quotesDb.length})`;
-  allChip.onclick = () => renderLibrary('全部');
-  chipsContainer.appendChild(allChip);
-  
-  allAnchors.forEach(item => {
-    const chip = document.createElement('div');
-    chip.className = `lib-chip ${activeAnchor === item.anchor ? 'active' : ''}`;
-    chip.textContent = `${item.anchor} (${item.count})`;
-    chip.onclick = () => renderLibrary(item.anchor);
-    chipsContainer.appendChild(chip);
-  });
+  const select = document.getElementById('library-category-select');
+  if (select) {
+    select.value = activeCategory || '全部';
+  }
   
   // Render Cards
   gridContainer.innerHTML = '';
-  const filteredQuotes = activeAnchor === '全部' 
+  const filteredQuotes = (!activeCategory || activeCategory === '全部') 
     ? [...quotesDb].reverse() 
-    : quotesDb.filter(q => q.user_anchor === activeAnchor).reverse();
+    : quotesDb.filter(q => (q.category || '').includes(activeCategory)).reverse();
     
   if (filteredQuotes.length === 0) {
     gridContainer.innerHTML = `

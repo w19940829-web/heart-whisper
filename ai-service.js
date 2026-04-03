@@ -24,7 +24,7 @@ const AI_SYSTEM_PROMPT = `
 {
   "status": "new_quote_added",
   "original_quote": "完整金句內容",
-  "category": "從[靈修陪伴, 情緒療癒, 激勵行動, 生活體悟]選一",
+  "category": "從[信仰微光, 情緒療癒, 激勵行動, 生活體悟]選一",
   "energy_level": "從[low, medium, high]選一 (low=溫和共情, medium=引導反思, high=激勵突破)",
   "focus_mode": {
     "chunked_quote": ["短句 1", "短句 2"],
