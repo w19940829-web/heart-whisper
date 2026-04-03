@@ -826,51 +826,278 @@ function prevSlide() {
   }
 }
 
-// 4. Gacha
+// 4. Gacha (Companion Card) — Enhanced
+let currentGachaQuote = null;
+let currentGachaAnchor = null;
+
+// Emoji map for common anchors
+const anchorEmojiMap = {
+  '焦慮': '😰', '不安': '😰', '緊張': '😬',
+  '難過': '😢', '傷心': '😢', '憂鬱': '💧',
+  '憤怒': '😤', '生氣': '🔥', '煩躁': '😣',
+  '孤單': '🌙', '寂寞': '🌙', '空虛': '🕳️',
+  '疲憊': '😮‍💨', '累': '😮‍💨', '疲倦': '🫠',
+  '恐懼': '😨', '害怕': '😨',
+  '迷茫': '🌫️', '困惑': '❓',
+  '壓力': '🏋️', '壓力大': '🏋️',
+  '自責': '💔', '愧疚': '💔',
+  '感恩': '🙏', '喜樂': '✨', '平安': '🕊️',
+  '盼望': '🌅', '勇敢': '💪', '信心': '🌟',
+};
+
+function getAnchorEmoji(anchor) {
+  if (!anchor) return '💫';
+  for (const [key, emoji] of Object.entries(anchorEmojiMap)) {
+    if (anchor.includes(key)) return emoji;
+  }
+  return '💫';
+}
+
+function getCatClass(category) {
+  if (!category) return '';
+  if (category.includes('療癒')) return 'gc-healing';
+  if (category.includes('激勵')) return 'gc-action';
+  if (category.includes('靈修') || category.includes('信仰')) return 'gc-spiritual';
+  if (category.includes('生活')) return 'gc-life';
+  return '';
+}
+
 function openGacha() {
   if (quotesDb.length === 0) {
-    showToast('籤筒裡還有沒有籤喔！請先採集新金句 🔮');
+    switchView('view-gacha');
+    // Show beautiful empty state
+    document.getElementById('gacha-prompt-text').textContent = '';
+    document.getElementById('gacha-options').style.display = 'none';
+    document.getElementById('gacha-glow-container').style.display = 'none';
+    
+    const resultDiv = document.getElementById('gacha-result');
+    resultDiv.innerHTML = `
+      <div class="gacha-empty">
+        <div class="gacha-empty-icon"><i class="ph-fill ph-leaf"></i></div>
+        <div class="gacha-empty-text">籤筒裡還沒有籤喔<br>先去採集你的第一句金句吧</div>
+        <button class="primary-btn" onclick="switchView('view-add')">
+          <i class="ph-fill ph-sparkle"></i> 去採集第一句
+        </button>
+      </div>`;
+    resultDiv.classList.add('reveal');
     return;
   }
-  switchView('view-gacha');
   
-  // Reset UI
-  document.getElementById('gacha-result').classList.remove('reveal');
+  switchView('view-gacha');
+  resetGacha();
+}
+
+function resetGacha() {
+  // Reset to emotion selection
+  currentGachaQuote = null;
+  currentGachaAnchor = null;
+  
+  // Restore card HTML if it was overwritten by empty state
+  const resultDiv = document.getElementById('gacha-result');
+  if (!document.getElementById('gacha-card')) {
+    resultDiv.innerHTML = `
+      <div class="gacha-card" id="gacha-card">
+        <div class="gacha-card-header">
+          <div class="gacha-card-badges">
+            <span class="lib-badge cat-badge" id="gacha-cat-badge"></span>
+          </div>
+          <div class="gacha-card-emoji" id="gacha-emoji"></div>
+        </div>
+        <div class="gacha-card-quote" id="gacha-quote-display"></div>
+        <div class="gacha-card-anchor" id="gacha-anchor-display"></div>
+        <div class="gacha-card-actions">
+          <button class="gacha-action-btn" onclick="playGachaTTS()">🔊 朗讀</button>
+          <button class="gacha-action-btn primary" onclick="redrawGacha()">🎲 再抽</button>
+          <button class="gacha-action-btn share-btn" onclick="shareGachaCard()">📤 分享</button>
+        </div>
+      </div>
+      <button class="gacha-action-btn" onclick="resetGacha()" style="margin-top:12px; width:100%; background:transparent; border:1.5px dashed var(--bg-secondary);">🔀 換個心情</button>`;
+  }
+  
+  resultDiv.classList.remove('reveal');
+  document.getElementById('gacha-glow-container').style.display = 'none';
   document.getElementById('gacha-options').style.display = 'flex';
   document.getElementById('gacha-prompt-text').textContent = '深呼吸... 告訴我現在的心情？';
   
   const optionsContainer = document.getElementById('gacha-options');
   optionsContainer.innerHTML = '';
   
+  // Add "Random" chip first
+  const randomChip = document.createElement('div');
+  randomChip.className = 'gacha-emotion-chip random-chip';
+  randomChip.innerHTML = '🎲 隨機抽一張';
+  randomChip.onclick = () => drawGacha(null);
+  optionsContainer.appendChild(randomChip);
+  
+  // Add emotion anchor chips with emojis
   const anchors = getUniqueAnchors();
   anchors.forEach(item => {
     const chip = document.createElement('div');
-    chip.className = 'scenario-chip';
-    chip.textContent = item.anchor;
+    chip.className = 'gacha-emotion-chip';
+    const emoji = getAnchorEmoji(item.anchor);
+    chip.innerHTML = `${emoji} ${item.anchor}`;
     chip.onclick = () => drawGacha(item.anchor);
     optionsContainer.appendChild(chip);
   });
 }
 
 function drawGacha(anchor) {
+  currentGachaAnchor = anchor;
+  
   // Hide options
   document.getElementById('gacha-options').style.display = 'none';
+  document.getElementById('gacha-result').classList.remove('reveal');
+  
   const promptText = document.getElementById('gacha-prompt-text');
-  promptText.textContent = '命運正在為你挑選那一句話...🔮';
+  promptText.textContent = anchor 
+    ? `正在為感到「${anchor}」的你尋找力量...` 
+    : '命運正在為你挑選那一句話...';
   
-  const filtered = quotesDb.filter(q => q.user_anchor === anchor);
+  // Show glow animation
+  const glowContainer = document.getElementById('gacha-glow-container');
+  const glowOrb = document.getElementById('gacha-glow-orb');
+  glowContainer.style.display = 'flex';
+  glowOrb.className = 'gacha-glow-orb'; // reset animation
+  
+  // Pick random quote
+  const filtered = anchor 
+    ? quotesDb.filter(q => q.user_anchor === anchor) 
+    : quotesDb;
   const randomMsg = filtered[Math.floor(Math.random() * filtered.length)];
+  currentGachaQuote = randomMsg;
   
+  // Phase 1: Glow (1.5s) → Phase 2: Burst → Phase 3: Reveal card
   setTimeout(() => {
-    promptText.textContent = `🪐 送給正感到「${anchor}」的你`;
+    glowOrb.classList.add('burst');
+    promptText.textContent = anchor 
+      ? `🪐 送給正感到「${anchor}」的你` 
+      : '🪐 命運為你選了這句話';
     
-    const resultDiv = document.getElementById('gacha-result');
-    document.getElementById('gacha-quote-display').textContent = randomMsg.original;
-    document.getElementById('gacha-tts-btn').onclick = () => playTTS(randomMsg.original);
+    setTimeout(() => {
+      glowContainer.style.display = 'none';
+      revealGachaCard(randomMsg);
+    }, 600);
+  }, 1800);
+}
+
+function revealGachaCard(quote) {
+  const cat = quote.category || '未分類';
+  const emoji = (quote.reflection_anchor && quote.reflection_anchor.action_emoji) || '💡';
+  const anchor = quote.user_anchor || '';
+  const anchorEmoji = getAnchorEmoji(anchor);
+  
+  // Set card category class
+  const card = document.getElementById('gacha-card');
+  card.className = 'gacha-card ' + getCatClass(cat);
+  
+  // Populate card content
+  document.getElementById('gacha-cat-badge').textContent = cat;
+  document.getElementById('gacha-emoji').textContent = emoji;
+  document.getElementById('gacha-quote-display').textContent = quote.original;
+  
+  if (anchor) {
+    document.getElementById('gacha-anchor-display').innerHTML = `${anchorEmoji} 當你感到「${anchor}」時`;
+    document.getElementById('gacha-anchor-display').style.display = 'flex';
+  } else {
+    document.getElementById('gacha-anchor-display').style.display = 'none';
+  }
+  
+  // Show result with animation
+  const resultDiv = document.getElementById('gacha-result');
+  resultDiv.classList.add('reveal');
+  
+  // Auto-play TTS
+  playTTS(quote.original);
+}
+
+function redrawGacha() {
+  // Re-draw with the same anchor
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  drawGacha(currentGachaAnchor);
+}
+
+function playGachaTTS() {
+  if (currentGachaQuote) {
+    playTTS(currentGachaQuote.original);
+  }
+}
+
+// Share (Screenshot) feature
+async function shareGachaCard() {
+  if (!currentGachaQuote) return;
+  
+  const card = document.getElementById('gacha-card');
+  if (!card) return;
+  
+  showToast('正在生成分享圖片... 📸');
+  
+  try {
+    const canvas = await html2canvas(card, {
+      backgroundColor: '#fdfbf7',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      borderRadius: 20,
+    });
     
-    resultDiv.classList.add('reveal');
-    playTTS(randomMsg.original); // Auto play for immediate soothing
-  }, 1500);
+    // Create share overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'gacha-share-overlay';
+    overlay.id = 'gacha-share-overlay';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    
+    const preview = document.createElement('div');
+    preview.className = 'gacha-share-preview';
+    preview.innerHTML = `
+      <h3>📸 分享這張陪伴卡</h3>
+      <div class="gacha-share-canvas-wrap"></div>
+      <div class="gacha-share-actions">
+        <button style="background:var(--bg-secondary); color:var(--text-primary);" onclick="document.getElementById('gacha-share-overlay').remove()">取消</button>
+        <button style="background:var(--accent-calm); color:#fff;" id="gacha-download-btn">💾 儲存圖片</button>
+      </div>
+    `;
+    
+    const canvasWrap = preview.querySelector('.gacha-share-canvas-wrap');
+    const img = new Image();
+    img.src = canvas.toDataURL('image/png');
+    canvasWrap.appendChild(img);
+    
+    overlay.appendChild(preview);
+    document.body.appendChild(overlay);
+    
+    // Download handler
+    document.getElementById('gacha-download-btn').onclick = () => {
+      const link = document.createElement('a');
+      link.download = `陪伴卡_${new Date().toLocaleDateString('zh-TW')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast('圖片已儲存 ✨');
+      overlay.remove();
+    };
+    
+    // Try Web Share API for mobile
+    if (navigator.share && navigator.canShare) {
+      canvas.toBlob(async (blob) => {
+        const shareBtn = document.createElement('button');
+        shareBtn.style.cssText = 'background:linear-gradient(135deg, var(--accent-warm), #c49c76); color:#fff;';
+        shareBtn.textContent = '📤 分享';
+        shareBtn.onclick = async () => {
+          try {
+            const file = new File([blob], '陪伴卡.png', { type: 'image/png' });
+            await navigator.share({ files: [file], title: '心語漫遊 · 陪伴卡' });
+            overlay.remove();
+          } catch (err) {
+            // User cancelled share
+          }
+        };
+        preview.querySelector('.gacha-share-actions').appendChild(shareBtn);
+      }, 'image/png');
+    }
+    
+  } catch (err) {
+    console.error('Share failed:', err);
+    showToast('截圖失敗，請再試一次');
+  }
 }
 
 /* --- Omni Quiz Logic (Lightweight Multiple Choice) --- */

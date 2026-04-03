@@ -18,6 +18,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
   <!-- Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- html2canvas for share feature -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -315,14 +317,32 @@
         </div>
         <div class="gacha-prompt" id="gacha-prompt-text">深呼吸... 告訴我現在的心情？</div>
         <div class="gacha-options" id="gacha-options">
-          <!-- Chips injected here -->
+          <!-- Emotion chips injected here -->
         </div>
         
+        <!-- Glow animation container -->
+        <div class="gacha-glow-container" id="gacha-glow-container" style="display:none;">
+          <div class="gacha-glow-orb" id="gacha-glow-orb"></div>
+        </div>
+        
+        <!-- Result card -->
         <div class="gacha-result" id="gacha-result">
-          <div class="lib-card">
-            <div class="lib-card-quote" id="gacha-quote-display"></div>
-            <button class="tts-btn" style="margin: 0 auto;" id="gacha-tts-btn">🔊 唸給我聽</button>
+          <div class="gacha-card" id="gacha-card">
+            <div class="gacha-card-header">
+              <div class="gacha-card-badges">
+                <span class="lib-badge cat-badge" id="gacha-cat-badge"></span>
+              </div>
+              <div class="gacha-card-emoji" id="gacha-emoji"></div>
+            </div>
+            <div class="gacha-card-quote" id="gacha-quote-display"></div>
+            <div class="gacha-card-anchor" id="gacha-anchor-display"></div>
+            <div class="gacha-card-actions">
+              <button class="gacha-action-btn" onclick="playGachaTTS()">🔊 朗讀</button>
+              <button class="gacha-action-btn primary" onclick="redrawGacha()">🎲 再抽</button>
+              <button class="gacha-action-btn share-btn" onclick="shareGachaCard()">📤 分享</button>
+            </div>
           </div>
+          <button class="gacha-action-btn" onclick="resetGacha()" style="margin-top:12px; width:100%; background:transparent; border:1.5px dashed var(--bg-secondary);">🔀 換個心情</button>
         </div>
       </section>
 
