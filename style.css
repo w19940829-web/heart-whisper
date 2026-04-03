@@ -365,6 +365,111 @@ body {
   background: #fdf8f4;
 }
 
+.scenario-chip.small {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  border-radius: 10px;
+}
+
+/* AI Insights Display */
+.ai-insights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ai-trigger-scene {
+  font-size: 0.88rem;
+  color: var(--text-dark);
+  padding: 10px 14px;
+  background: #fdfaf7;
+  border: 1px solid var(--bg-secondary);
+  border-radius: 12px;
+  line-height: 1.5;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.lib-badge.cat-badge {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Functional Category Badge Colors */
+.cat-empathy .cat-badge { background-color: #a3b1a6; color: white; }
+.cat-reframe .cat-badge { background-color: #8ea4bf; color: white; }
+.cat-action .cat-badge { background-color: #d4a574; color: white; }
+.cat-compassion .cat-badge { background-color: #c4a3b1; color: white; }
+.cat-faith .cat-badge { background-color: #b8b3c9; color: white; }
+.cat-growth .cat-badge { background-color: #9db89d; color: white; }
+
+/* Toggle Vocab Button */
+.toggle-vocab-btn {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--accent-calm);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 12px 0;
+  text-align: center;
+  transition: color 0.2s;
+}
+
+.toggle-vocab-btn:hover {
+  color: var(--text-primary);
+}
+
+/* Emotion Vocabulary Grid */
+.emotion-vocab-grid {
+  border: 1px solid var(--bg-secondary);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: var(--bg-primary);
+}
+
+.emotion-group {
+  margin-bottom: 12px;
+}
+
+.emotion-group:last-child {
+  margin-bottom: 0;
+}
+
+.emotion-group-header {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+
+.emotion-group-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* New Category Colors (6 functional categories) */
+.cat-empathy { background: linear-gradient(145deg, #f4f9f6, #ffffff); border-left: 4px solid #a3b1a6; }
+.cat-reframe { background: linear-gradient(145deg, #f2f5f9, #ffffff); border-left: 4px solid #8ea4bf; }
+.cat-action { background: linear-gradient(145deg, #fffaf4, #ffffff); border-left: 4px solid #d4a574; }
+.cat-compassion { background: linear-gradient(145deg, #faf4f7, #ffffff); border-left: 4px solid #c4a3b1; }
+.cat-faith { background: linear-gradient(145deg, #fbfafc, #ffffff); border-left: 4px solid #b8b3c9; }
+.cat-growth { background: linear-gradient(145deg, #f4f9f4, #ffffff); border-left: 4px solid #9db89d; }
+
+/* Gacha card new category colors */
+.gacha-card.gc-empathy::before { background: linear-gradient(90deg, #a3b1a6, #c8d8cb); }
+.gacha-card.gc-reframe::before { background: linear-gradient(90deg, #8ea4bf, #b3c4d8); }
+.gacha-card.gc-action::before { background: linear-gradient(90deg, #d4a574, #e8c9a8); }
+.gacha-card.gc-compassion::before { background: linear-gradient(90deg, #c4a3b1, #dcC8d2); }
+.gacha-card.gc-faith::before { background: linear-gradient(90deg, #b8b3c9, #d4d0e3); }
+.gacha-card.gc-growth::before { background: linear-gradient(90deg, #9db89d, #c4d8c4); }
+
 /* Settings Modal */
 .modal-overlay {
   position: fixed;

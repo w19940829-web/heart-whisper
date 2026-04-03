@@ -4,6 +4,58 @@ let currentProcessingQuote = null;
 let currentReviewSession = [];
 let reviewIndex = 0;
 
+/* --- Standardized Emotion Vocabulary (Two-Tier) --- */
+const EMOTION_VOCAB = {
+  '焦慮': { emoji: '😰', triggers: ['趕死線時', '社交場合前', '對未來不安', '完美主義發作'] },
+  '憤怒': { emoji: '😤', triggers: ['被否定時', '對自己生氣', '人際摩擦', '感到不公平'] },
+  '悲傷': { emoji: '😢', triggers: ['失去重要的事物', '被拒絕後', '感到失望', '想起過去'] },
+  '恐懼': { emoji: '😨', triggers: ['害怕失敗', '害怕被評價', '面對未知', '承擔責任時'] },
+  '疲憊': { emoji: '😮‍💨', triggers: ['身心俱疲', '燃盡感', '找不到動力', '睡不好的日子'] },
+  '孤獨': { emoji: '🌙', triggers: ['覺得沒人懂', '被忽略時', '想念某人', '深夜獨處'] },
+  '自卑': { emoji: '😞', triggers: ['比較心態', '覺得不夠好', '冒名頂替感', '被批評後'] },
+  '迷茫': { emoji: '🌫️', triggers: ['不知道方向', '選擇困難', '意義感消失', '信心動搖'] },
+};
+
+const CATEGORY_MAP = {
+  '🫂 安慰共感': { color: '#a3b1a6', class: 'cat-empathy' },
+  '🔄 轉念重塑': { color: '#8ea4bf', class: 'cat-reframe' },
+  '💪 推動行動': { color: '#d4a574', class: 'cat-action' },
+  '🤗 自我疼惜': { color: '#c4a3b1', class: 'cat-compassion' },
+  '🙏 信仰連結': { color: '#b8b3c9', class: 'cat-faith' },
+  '🌱 成長提醒': { color: '#9db89d', class: 'cat-growth' },
+};
+
+// Helper: find emotion for a trigger
+function findEmotionForTrigger(trigger) {
+  for (const [emotion, data] of Object.entries(EMOTION_VOCAB)) {
+    if (data.triggers.includes(trigger)) return emotion;
+  }
+  return null;
+}
+
+// Helper: get display anchor (backward compatible)
+function getQuoteAnchor(q) {
+  if (q.emotional_anchors && q.emotional_anchors.primary) {
+    return q.emotional_anchors.primary;
+  }
+  return q.user_anchor || q.anchors?.[0] || '未分類';
+}
+
+function getQuoteEmotion(q) {
+  if (q.emotional_anchors && q.emotional_anchors.primary_emotion) {
+    return q.emotional_anchors.primary_emotion;
+  }
+  // Fallback: guess from old user_anchor
+  const anchor = q.user_anchor || '';
+  for (const [emotion, data] of Object.entries(EMOTION_VOCAB)) {
+    if (anchor.includes(emotion)) return emotion;
+    for (const t of data.triggers) {
+      if (anchor.includes(t)) return emotion;
+    }
+  }
+  return '迷茫'; // default fallback
+}
+
 /* --- UI Logic & Routing --- */
 function switchView(viewId) {
   // Haptic feedback
@@ -181,15 +233,20 @@ async function batchUpgradeOldQuotes() {
       // Update original object in quotesDb (safely by finding its index)
       const dbIdx = quotesDb.findIndex(dbq => dbq.id === q.id);
       if (dbIdx > -1) {
+        // Merge AI result (includes new category and emotional_anchors)
         quotesDb[dbIdx] = { ...quotesDb[dbIdx], ...res };
         
-        // Re-align tags manually if they were put into user_anchor initially
-        if (!quotesDb[dbIdx].user_anchor || quotesDb[dbIdx].user_anchor === '未分類' || quotesDb[dbIdx].user_anchor === '#未分類') {
+        // Ensure user_anchor is synchronized for backward compatibility
+        const primaryTrigger = res.emotional_anchors?.primary;
+        if (primaryTrigger) {
+          quotesDb[dbIdx].user_anchor = primaryTrigger;
+        } else {
+          // Fallback if AI didn't return perfect structure
           const tags = res.reflection_anchor?.suggested_tags || res.reflection_anchor?.suggested_scenarios || ["#未分類"];
           quotesDb[dbIdx].user_anchor = tags[0];
         }
 
-        // Save progress immediately so if it fails midway, we don't lose the processed ones
+        // Save progress immediately
         localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
         successCount++;
       }
@@ -274,29 +331,139 @@ function renderAIAnchorStage(quoteObj) {
     chunkContainer.appendChild(span);
   });
   
-  // Render Reflection
+  // Render category badge
+  const catDisplay = document.getElementById('ai-category-display');
+  if (catDisplay) {
+    catDisplay.textContent = quoteObj.category || '';
+    catDisplay.style.display = quoteObj.category ? 'inline-block' : 'none';
+  }
+  
+  // Render trigger scene
+  const sceneDisplay = document.getElementById('ai-trigger-scene');
+  const triggerScene = quoteObj.emotional_anchors?.trigger_scene || '';
+  if (sceneDisplay) {
+    sceneDisplay.textContent = triggerScene ? `💡 ${triggerScene}` : '';
+    sceneDisplay.style.display = triggerScene ? 'block' : 'none';
+  }
+  
+  // Render AI-recommended anchors
   const optionsContainer = document.getElementById('scenario-options');
   optionsContainer.innerHTML = '';
-  const tags = quoteObj.reflection_anchor.suggested_tags || quoteObj.reflection_anchor.suggested_scenarios || ["#預設標籤"];
-  tags.forEach((scenario, i) => {
+  
+  const anchors = quoteObj.emotional_anchors || {};
+  const aiAnchors = [];
+  
+  if (anchors.primary) {
+    aiAnchors.push({ 
+      trigger: anchors.primary, 
+      emotion: anchors.primary_emotion || findEmotionForTrigger(anchors.primary) || '迷茫'
+    });
+  }
+  if (anchors.secondary && anchors.secondary !== anchors.primary) {
+    aiAnchors.push({ 
+      trigger: anchors.secondary,
+      emotion: anchors.secondary_emotion || findEmotionForTrigger(anchors.secondary) || '迷茫'
+    });
+  }
+  
+  // Fallback: old suggested_tags format
+  if (aiAnchors.length === 0) {
+    const tags = quoteObj.reflection_anchor?.suggested_tags || quoteObj.reflection_anchor?.suggested_scenarios || [];
+    tags.forEach(t => aiAnchors.push({ trigger: t, emotion: '迷茫' }));
+  }
+  
+  // Render AI recommended chips
+  aiAnchors.forEach((item, i) => {
+    const emotionData = EMOTION_VOCAB[item.emotion] || { emoji: '💫' };
     const div = document.createElement('div');
-    div.className = 'scenario-chip';
-    div.textContent = scenario;
-    div.onclick = () => {
-      document.querySelectorAll('.scenario-chip').forEach(el => el.classList.remove('selected'));
-      div.classList.add('selected');
-      document.getElementById('custom-reflection').value = scenario;
-    };
+    div.className = 'scenario-chip' + (i === 0 ? ' selected' : '');
+    div.innerHTML = `${emotionData.emoji} ${item.trigger}`;
+    div.dataset.trigger = item.trigger;
+    div.dataset.emotion = item.emotion;
+    div.onclick = () => selectAnchorChip(div);
     optionsContainer.appendChild(div);
   });
+  
+  // Pre-fill with primary anchor
+  if (aiAnchors.length > 0) {
+    document.getElementById('custom-reflection').value = aiAnchors[0].trigger;
+  }
+  
+  // Render expandable full emotion vocabulary
+  renderEmotionVocabGrid();
+}
+
+function selectAnchorChip(chip) {
+  document.querySelectorAll('#scenario-options .scenario-chip, #emotion-vocab-grid .scenario-chip').forEach(el => el.classList.remove('selected'));
+  chip.classList.add('selected');
+  document.getElementById('custom-reflection').value = chip.dataset.trigger;
+}
+
+function renderEmotionVocabGrid() {
+  const grid = document.getElementById('emotion-vocab-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  
+  for (const [emotion, data] of Object.entries(EMOTION_VOCAB)) {
+    const group = document.createElement('div');
+    group.className = 'emotion-group';
+    
+    const header = document.createElement('div');
+    header.className = 'emotion-group-header';
+    header.innerHTML = `${data.emoji} ${emotion}`;
+    group.appendChild(header);
+    
+    const chips = document.createElement('div');
+    chips.className = 'emotion-group-chips';
+    
+    data.triggers.forEach(trigger => {
+      const chip = document.createElement('div');
+      chip.className = 'scenario-chip small';
+      chip.textContent = trigger;
+      chip.dataset.trigger = trigger;
+      chip.dataset.emotion = emotion;
+      chip.onclick = () => selectAnchorChip(chip);
+      chips.appendChild(chip);
+    });
+    
+    group.appendChild(chips);
+    grid.appendChild(group);
+  }
+}
+
+function toggleEmotionVocab() {
+  const grid = document.getElementById('emotion-vocab-grid');
+  const btn = document.getElementById('toggle-vocab-btn');
+  if (grid.style.display === 'none' || !grid.style.display) {
+    grid.style.display = 'block';
+    btn.textContent = '▲ 收起完整詞庫';
+  } else {
+    grid.style.display = 'none';
+    btn.textContent = '▼ 我想自己選（展開完整詞庫）';
+  }
 }
 
 function saveQuote() {
   const customRef = document.getElementById('custom-reflection').value.trim();
-  if(!currentProcessingQuote.user_anchor) {
-     const tags = currentProcessingQuote.reflection_anchor.suggested_tags || currentProcessingQuote.reflection_anchor.suggested_scenarios || ["#未分類"];
-     currentProcessingQuote.user_anchor = customRef || tags[0];
+  
+  // Find selected chip for structured data
+  const selectedChip = document.querySelector('.scenario-chip.selected');
+  const selectedTrigger = selectedChip?.dataset?.trigger || customRef;
+  const selectedEmotion = selectedChip?.dataset?.emotion || findEmotionForTrigger(selectedTrigger) || '迷茫';
+  
+  // Set emotional anchors (new structure)
+  if (!currentProcessingQuote.emotional_anchors) {
+    currentProcessingQuote.emotional_anchors = {};
   }
+  
+  // If user manually changed, override AI's recommendation
+  if (selectedTrigger && selectedTrigger !== currentProcessingQuote.emotional_anchors.primary) {
+    currentProcessingQuote.emotional_anchors.primary = selectedTrigger;
+    currentProcessingQuote.emotional_anchors.primary_emotion = selectedEmotion;
+  }
+  
+  // Backward compatibility: set user_anchor
+  currentProcessingQuote.user_anchor = selectedTrigger || currentProcessingQuote.emotional_anchors?.primary || '未分類';
   
   quotesDb.push(currentProcessingQuote);
   localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
@@ -734,7 +901,7 @@ function renderLibrary(activeCategory) {
     
   filteredQuotes.forEach(q => {
     const cat = q.category || '無分類';
-    const energy = q.energy_level || 'low'; //預設
+    const energy = q.energy_level || 'low';
     let emoji = '💡';
     if (q.reflection_anchor && q.reflection_anchor.action_emoji) {
       emoji = q.reflection_anchor.action_emoji;
@@ -745,11 +912,23 @@ function renderLibrary(activeCategory) {
     if (energy.includes('medium')) { energySymbol = '🟡'; energyText = '引導'; }
     if (energy.includes('high')) { energySymbol = '🔴'; energyText = '激勵'; }
 
+    // New 6-category + old 4-category fallback
     let catClass = '';
-    if (cat.includes('療癒')) catClass = 'cat-healing';
-    else if (cat.includes('靈修')) catClass = 'cat-spiritual';
-    else if (cat.includes('激勵')) catClass = 'cat-action';
-    else if (cat.includes('生活')) catClass = 'cat-life';
+    if (CATEGORY_MAP[cat]) {
+      catClass = CATEGORY_MAP[cat].class;
+    } else if (cat.includes('安慰') || cat.includes('共感')) catClass = 'cat-empathy';
+    else if (cat.includes('轉念') || cat.includes('重塑')) catClass = 'cat-reframe';
+    else if (cat.includes('推動') || cat.includes('激勵') || cat.includes('行動')) catClass = 'cat-action';
+    else if (cat.includes('疼惜') || cat.includes('接納')) catClass = 'cat-compassion';
+    else if (cat.includes('信仰') || cat.includes('靈修') || cat.includes('微光')) catClass = 'cat-faith';
+    else if (cat.includes('成長')) catClass = 'cat-growth';
+    else if (cat.includes('療癒')) catClass = 'cat-empathy';
+    else if (cat.includes('生活') || cat.includes('體悟')) catClass = 'cat-reframe';
+
+    // Display anchor (backward compatible)
+    const anchorDisplay = getQuoteAnchor(q);
+    const emotionKey = getQuoteEmotion(q);
+    const emotionEmoji = EMOTION_VOCAB[emotionKey]?.emoji || '💫';
 
     const card = document.createElement('div');
     card.className = `lib-card ${catClass}`;
@@ -763,8 +942,8 @@ function renderLibrary(activeCategory) {
       </div>
       <div class="lib-card-quote">${q.original}</div>
       <div class="lib-card-meta">
-        <span>📍 ${q.user_anchor || '無標籤'}</span>
-        <button class="icon-btn" onclick="playTTS('${q.original}')">🔊</button>
+        <span>${emotionEmoji} ${anchorDisplay}</span>
+        <button class="icon-btn" onclick="playTTS('${q.original.replace(/'/g, "\\'")}')">🔊</button>
       </div>
     `;
     gridContainer.appendChild(card);
@@ -847,6 +1026,14 @@ const anchorEmojiMap = {
 
 function getAnchorEmoji(anchor) {
   if (!anchor) return '💫';
+  // Use EMOTION_VOCAB
+  for (const [emotion, data] of Object.entries(EMOTION_VOCAB)) {
+    if (anchor.includes(emotion)) return data.emoji;
+    for (const t of data.triggers) {
+      if (anchor === t || anchor.includes(t)) return data.emoji;
+    }
+  }
+  // Fallback to old anchorEmojiMap
   for (const [key, emoji] of Object.entries(anchorEmojiMap)) {
     if (anchor.includes(key)) return emoji;
   }
@@ -855,10 +1042,15 @@ function getAnchorEmoji(anchor) {
 
 function getCatClass(category) {
   if (!category) return '';
-  if (category.includes('療癒')) return 'gc-healing';
-  if (category.includes('激勵')) return 'gc-action';
-  if (category.includes('靈修') || category.includes('信仰')) return 'gc-spiritual';
-  if (category.includes('生活')) return 'gc-life';
+  // New 6 functional categories
+  if (CATEGORY_MAP[category]) return 'gc-' + CATEGORY_MAP[category].class.replace('cat-', '');
+  // Keyword fallback
+  if (category.includes('安慰') || category.includes('共感') || category.includes('療癒')) return 'gc-empathy';
+  if (category.includes('轉念') || category.includes('重塑') || category.includes('生活') || category.includes('體悟')) return 'gc-reframe';
+  if (category.includes('推動') || category.includes('激勵') || category.includes('行動')) return 'gc-action';
+  if (category.includes('疼惜') || category.includes('接納')) return 'gc-compassion';
+  if (category.includes('信仰') || category.includes('靈修') || category.includes('微光')) return 'gc-faith';
+  if (category.includes('成長')) return 'gc-growth';
   return '';
 }
 
@@ -929,28 +1121,35 @@ function resetGacha() {
   randomChip.onclick = () => drawGacha(null);
   optionsContainer.appendChild(randomChip);
   
-  // Add emotion anchor chips with emojis
-  const anchors = getUniqueAnchors();
-  anchors.forEach(item => {
-    const chip = document.createElement('div');
-    chip.className = 'gacha-emotion-chip';
-    const emoji = getAnchorEmoji(item.anchor);
-    chip.innerHTML = `${emoji} ${item.anchor}`;
-    chip.onclick = () => drawGacha(item.anchor);
-    optionsContainer.appendChild(chip);
+  // New: Show 8 Core Emotions instead of a long list of triggers
+  // Filter only emotions that actually have quotes
+  const emotionCounts = {};
+  quotesDb.forEach(q => {
+    const e = getQuoteEmotion(q);
+    emotionCounts[e] = (emotionCounts[e] || 0) + 1;
   });
+
+  for (const [name, data] of Object.entries(EMOTION_VOCAB)) {
+    if (emotionCounts[name]) {
+      const chip = document.createElement('div');
+      chip.className = 'gacha-emotion-chip';
+      chip.innerHTML = `${data.emoji} ${name}`;
+      chip.onclick = () => drawGacha(name);
+      optionsContainer.appendChild(chip);
+    }
+  }
 }
 
-function drawGacha(anchor) {
-  currentGachaAnchor = anchor;
+function drawGacha(coreEmotion) {
+  currentGachaAnchor = coreEmotion;
   
   // Hide options
   document.getElementById('gacha-options').style.display = 'none';
   document.getElementById('gacha-result').classList.remove('reveal');
   
   const promptText = document.getElementById('gacha-prompt-text');
-  promptText.textContent = anchor 
-    ? `正在為感到「${anchor}」的你尋找力量...` 
+  promptText.textContent = coreEmotion 
+    ? `正在為感到「${coreEmotion}」的你尋找力量...` 
     : '命運正在為你挑選那一句話...';
   
   // Show glow animation
@@ -959,18 +1158,24 @@ function drawGacha(anchor) {
   glowContainer.style.display = 'flex';
   glowOrb.className = 'gacha-glow-orb'; // reset animation
   
-  // Pick random quote
-  const filtered = anchor 
-    ? quotesDb.filter(q => q.user_anchor === anchor) 
+  // Filter by core emotion or all if null
+  const filtered = coreEmotion 
+    ? quotesDb.filter(q => getQuoteEmotion(q) === coreEmotion) 
     : quotesDb;
+  
+  if (filtered.length === 0) {
+    showToast('居然找不到這類金句，幫你隨機抽一張囉！');
+    return drawGacha(null);
+  }
+
   const randomMsg = filtered[Math.floor(Math.random() * filtered.length)];
   currentGachaQuote = randomMsg;
   
-  // Phase 1: Glow (1.5s) → Phase 2: Burst → Phase 3: Reveal card
+  // Phase 1: Glow (1.8s) → Phase 2: Burst → Phase 3: Reveal card
   setTimeout(() => {
     glowOrb.classList.add('burst');
-    promptText.textContent = anchor 
-      ? `🪐 送給正感到「${anchor}」的你` 
+    promptText.textContent = coreEmotion 
+      ? `🪐 送給正感到「${coreEmotion}」的你` 
       : '🪐 命運為你選了這句話';
     
     setTimeout(() => {

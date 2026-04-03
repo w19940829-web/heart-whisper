@@ -180,11 +180,23 @@
           </div>
 
           <div class="reflection-prompt-box">
-            <h3 class="reflection-title">選擇一個適合它的時刻</h3>
-            <p class="reflection-desc">為這句話綁定一個情緒錨點。你想在何時收到這句提醒？</p>
-            <div class="scenario-options" id="scenario-options">
-              <!-- Options injected here -->
+            <div class="ai-insights">
+              <span class="lib-badge cat-badge" id="ai-category-display" style="display:none;"></span>
+              <div class="ai-trigger-scene" id="ai-trigger-scene" style="display:none;"></div>
             </div>
+            
+            <h3 class="reflection-title">AI 推薦的情緒錨點</h3>
+            <p class="reflection-desc">這句話最適合在什麼時候拿出來用？</p>
+            <div class="scenario-options" id="scenario-options">
+              <!-- AI recommended chips injected here -->
+            </div>
+            
+            <button class="toggle-vocab-btn" id="toggle-vocab-btn" onclick="toggleEmotionVocab()">▼ 我想自己選（展開完整詞庫）</button>
+            
+            <div class="emotion-vocab-grid" id="emotion-vocab-grid" style="display:none;">
+              <!-- Full 8×4 emotion grid injected here -->
+            </div>
+            
             <textarea id="custom-reflection" class="modern-textarea reflection-input" rows="2" placeholder="或者，隨意寫下你的感受... (可略)"></textarea>
             
             <button class="primary-btn confirm-btn" onclick="saveQuote()">
@@ -296,10 +308,12 @@
         <div class="library-filter-wrapper" style="margin-bottom: 16px;">
           <select id="library-category-select" class="form-input" style="width: 100%; font-weight: 700; color: var(--text-dark); background-color: var(--croc-foam); border: 1.5px solid var(--croc-mist);" onchange="renderLibrary(this.value)">
             <option value="全部">📂 全部金句</option>
-            <option value="信仰微光">✨ 信仰微光</option>
-            <option value="情緒療癒">🩹 情緒療癒</option>
-            <option value="激勵行動">🔥 激勵行動</option>
-            <option value="生活體悟">🌱 生活體悟</option>
+            <option value="安慰共感">🫂 安慰共感</option>
+            <option value="轉念重塑">🔄 轉念重塑</option>
+            <option value="推動行動">💪 推動行動</option>
+            <option value="自我疼惜">🤗 自我疼惜</option>
+            <option value="信仰連結">🙏 信仰連結</option>
+            <option value="成長提醒">🌱 成長提醒</option>
           </select>
         </div>
         
