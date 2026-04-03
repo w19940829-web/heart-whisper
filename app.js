@@ -1212,3 +1212,10 @@ function changeAmbientVolume() {
     ytPlayer.setVolume(val);
   }
 }
+
+// 12. App Utility
+function forceAppUpdate() {
+  const currentUrl = window.location.href.split('?')[0];
+  const cb = new Date().getTime();
+  window.location.replace(`${currentUrl}?v=${cb}`);
+}
