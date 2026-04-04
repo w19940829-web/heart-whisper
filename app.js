@@ -83,10 +83,6 @@ function updateDashboard() {
   // Fake Streak logic based on daily log
   const streak = localStorage.getItem('hw_streak') || 0;
   document.getElementById('stat-streak').textContent = streak;
-  
-  if (typeof renderHomePills === 'function') {
-    renderHomePills();
-  }
 }
 
 let toastQueue = [];
@@ -485,7 +481,7 @@ function saveQuote() {
 /* --- DAILY REVIEW (PHASE 2 & 3) --- */
 function startDailyReview() {
   const now = new Date().getTime();
-  currentReviewSession = quotesDb.filter(q => q.nextReviewDate <= now);
+  currentReviewSession = quotesDb.filter(q => q.nextReviewDate <= now).sort(() => 0.5 - Math.random());
   
   if(currentReviewSession.length === 0) {
     showToast('現在沒有需要複習的金句喔！先休息一下吧。');
@@ -824,51 +820,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /* --- NEW FEATURES: EMOTIONAL ANCHOR SYSTEM --- */
 
-function getUniqueAnchors() {
-  const anchors = {};
-  quotesDb.forEach(q => {
-    if (q.user_anchor) {
-      anchors[q.user_anchor] = (anchors[q.user_anchor] || 0) + 1;
-    }
-  });
-  // Return sorted array of objects [{anchor: '...', count: 3}, ...]
-  return Object.keys(anchors).map(k => ({ anchor: k, count: anchors[k] }))
-         .sort((a,b) => b.count - a.count);
-}
-
-// 1. Home Pills
-function renderHomePills() {
-  const container = document.getElementById('home-pills-container');
-  if (!container) return;
-  container.innerHTML = '';
-  const sortedAnchors = getUniqueAnchors().slice(0, 5); // Top 5
-  
-  if (sortedAnchors.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state" style="padding: 20px;">
-        <i class="ph-fill ph-leaf"></i>
-        <p>還沒有情緒標籤，快去採集一句吧！</p>
-      </div>`;
-    return;
-  }
-  
-  sortedAnchors.forEach(item => {
-    const btn = document.createElement('button');
-    btn.className = 'pill-btn';
-    
-    // 試圖從現有金句中找一個含有此標籤的 Emoji 做代表
-    const exampleQ = quotesDb.find(q => q.user_anchor === item.anchor);
-    let emoji = '💡';
-    if (exampleQ && exampleQ.reflection_anchor && exampleQ.reflection_anchor.action_emoji) {
-      emoji = exampleQ.reflection_anchor.action_emoji;
-    } else if (item.anchor.includes('焦慮')) emoji = '🌙';
-    else if (item.anchor.includes('接納') || item.anchor.includes('愛')) emoji = '💗';
-    
-    btn.innerHTML = `<span style="margin-right:4px;">${emoji}</span> ${item.anchor} <small style="opacity:0.6">(${item.count})</small>`;
-    btn.onclick = () => openSlideshow(item.anchor);
-    container.appendChild(btn);
-  });
-}
 
 // 2. Library
 function openLibrary() {
@@ -1063,7 +1014,6 @@ function openGacha() {
     switchView('view-gacha');
     // Show beautiful empty state
     document.getElementById('gacha-prompt-text').textContent = '';
-    document.getElementById('gacha-options').style.display = 'none';
     document.getElementById('gacha-glow-container').style.display = 'none';
     
     const resultDiv = document.getElementById('gacha-result');
@@ -1080,15 +1030,8 @@ function openGacha() {
   }
   
   switchView('view-gacha');
-  resetGacha();
-}
-
-function resetGacha() {
-  // Reset to emotion selection
-  currentGachaQuote = null;
-  currentGachaAnchor = null;
   
-  // Restore card HTML if it was overwritten by empty state
+  // Initialize standard gacha structure if overridden by empty state previously
   const resultDiv = document.getElementById('gacha-result');
   if (!document.getElementById('gacha-card')) {
     resultDiv.innerHTML = `
@@ -1106,49 +1049,18 @@ function resetGacha() {
           <button class="gacha-action-btn primary" onclick="redrawGacha()">🎲 再抽</button>
           <button class="gacha-action-btn share-btn" onclick="shareGachaCard()">📤 分享</button>
         </div>
-      </div>
-      <button class="gacha-action-btn" onclick="resetGacha()" style="margin-top:12px; width:100%; background:transparent; border:1.5px dashed var(--bg-secondary);">🔀 換個心情</button>`;
+      </div>`;
   }
   
-  resultDiv.classList.remove('reveal');
-  document.getElementById('gacha-glow-container').style.display = 'none';
-  document.getElementById('gacha-options').style.display = 'flex';
-  document.getElementById('gacha-prompt-text').textContent = '深呼吸... 告訴我現在的心情？';
-  
-  const optionsContainer = document.getElementById('gacha-options');
-  optionsContainer.innerHTML = '';
-  
-  // Add "Random" chip first
-  const randomChip = document.createElement('div');
-  randomChip.className = 'gacha-emotion-chip random-chip';
-  randomChip.innerHTML = '🎲 隨機抽一張';
-  randomChip.onclick = () => drawGacha(null);
-  optionsContainer.appendChild(randomChip);
-  
-  // New: Show 8 Core Emotions instead of a long list of triggers
-  // Filter only emotions that actually have quotes
-  const emotionCounts = {};
-  quotesDb.forEach(q => {
-    const e = getQuoteEmotion(q);
-    emotionCounts[e] = (emotionCounts[e] || 0) + 1;
-  });
-
-  for (const [name, data] of Object.entries(EMOTION_VOCAB)) {
-    if (emotionCounts[name]) {
-      const chip = document.createElement('div');
-      chip.className = 'gacha-emotion-chip';
-      chip.innerHTML = `${data.emoji} ${name}`;
-      chip.onclick = () => drawGacha(name);
-      optionsContainer.appendChild(chip);
-    }
-  }
+  drawGacha(null);
 }
+
+
 
 function drawGacha(coreEmotion) {
   currentGachaAnchor = coreEmotion;
   
   // Hide options
-  document.getElementById('gacha-options').style.display = 'none';
   document.getElementById('gacha-result').classList.remove('reveal');
   
   const promptText = document.getElementById('gacha-prompt-text');
