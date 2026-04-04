@@ -1856,3 +1856,208 @@ body {
     color: var(--text-primary);
   }
 }
+
+/* --- Mic Button (Voice Input) --- */
+.mic-btn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
+.mic-btn:hover {
+  background: var(--accent-calm);
+  color: #fff;
+}
+.mic-btn.recording {
+  background: #e57373;
+  color: #fff;
+  animation: micPulse 1.2s ease-in-out infinite;
+}
+@keyframes micPulse {
+  0%, 100% { box-shadow: 0 0 0 0px rgba(229,115,115,0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(229,115,115,0); }
+}
+
+/* --- Soul Garden (心靈花園) --- */
+.soul-garden {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, rgba(163,177,166,0.08), rgba(212,189,165,0.08));
+  border-radius: 20px;
+  border: 1px solid rgba(0,0,0,0.04);
+}
+.soul-tree-container {
+  position: relative;
+  width: 80px;
+  height: 90px;
+}
+.soul-tree {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.tree-crown {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #9db89d, #7a9e7a);
+  transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 4px 12px rgba(120,160,120,0.2);
+}
+.tree-crown.level-0 { width: 28px; height: 28px; background: radial-gradient(circle, #c8d8cb, #a8c0ab); opacity: 0.6; }
+.tree-crown.level-1 { width: 36px; height: 36px; background: radial-gradient(circle, #b8ccba, #98b89a); }
+.tree-crown.level-2 { width: 44px; height: 44px; background: radial-gradient(circle, #a3c1a6, #88aa8a); }
+.tree-crown.level-3 { width: 52px; height: 52px; background: radial-gradient(circle, #9db89d, #78a478); }
+.tree-crown.level-4 { width: 58px; height: 58px; background: radial-gradient(circle at 40% 40%, #8aad8a, #6a946a); box-shadow: 0 4px 20px rgba(100,150,100,0.3); }
+.tree-crown.level-5 { width: 64px; height: 64px; background: radial-gradient(circle at 35% 35%, #7aa87a, #5a8e5a, #9db89d); box-shadow: 0 6px 24px rgba(90,142,90,0.35), inset 0 -4px 8px rgba(0,0,0,0.08); }
+
+.tree-trunk {
+  width: 8px;
+  height: 20px;
+  background: linear-gradient(to bottom, #b89a7a, #a08060);
+  border-radius: 0 0 3px 3px;
+}
+.tree-ground {
+  width: 40px;
+  height: 6px;
+  background: radial-gradient(ellipse, rgba(160,128,96,0.3), transparent);
+  border-radius: 50%;
+}
+.soul-sparkles {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+}
+.sparkle-dot {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: gold;
+  border-radius: 50%;
+  animation: sparkleFloat 2s ease-out forwards;
+  opacity: 0;
+}
+@keyframes sparkleFloat {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-40px) scale(0.3); }
+}
+
+.soul-garden-info {
+  text-align: center;
+}
+.soul-points {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  line-height: 1;
+}
+.soul-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* --- Sticky Note (共鳴便利貼) --- */
+.lib-card-note-area {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(0,0,0,0.06);
+}
+.lib-note-display {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-style: italic;
+  padding: 6px 10px;
+  background: rgba(212,189,165,0.08);
+  border-radius: 8px;
+  position: relative;
+}
+.lib-note-display::before {
+  content: '📌';
+  margin-right: 4px;
+}
+.btn-add-note {
+  background: transparent;
+  border: 1px dashed var(--accent-calm);
+  color: var(--accent-calm);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.btn-add-note:hover {
+  background: var(--accent-calm);
+  color: #fff;
+}
+.note-input-area {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.note-input-area input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.note-input-area input:focus {
+  outline: none;
+  border-color: var(--accent-calm);
+}
+.note-input-area button {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent-calm);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (prefers-color-scheme: dark) {
+  .soul-garden {
+    background: linear-gradient(135deg, rgba(100,130,105,0.1), rgba(150,130,100,0.08));
+    border-color: rgba(255,255,255,0.04);
+  }
+  .mic-btn {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+  }
+  .lib-note-display {
+    background: rgba(255,255,255,0.04);
+  }
+  .note-input-area input {
+    background: var(--bg-secondary);
+    border-color: rgba(255,255,255,0.05);
+  }
+}

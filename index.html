@@ -47,6 +47,22 @@
           <div class="hero-sub">大腦喜歡輕輕地複習，慢慢來就好。</div>
         </div>
 
+        <!-- 心靈之樹 -->
+        <div class="soul-garden" id="soul-garden">
+          <div class="soul-tree-container">
+            <div class="soul-tree" id="soul-tree">
+              <div class="tree-crown" id="tree-crown"></div>
+              <div class="tree-trunk"></div>
+              <div class="tree-ground"></div>
+            </div>
+            <div class="soul-sparkles" id="soul-sparkles"></div>
+          </div>
+          <div class="soul-garden-info">
+            <div class="soul-points"><span id="soul-points-count">0</span> ✨</div>
+            <div class="soul-label">心靈光點</div>
+          </div>
+        </div>
+
         <!-- Section 1: 每日修行 -->
         <div class="dashboard-section-title"><i class="ph-fill ph-plant"></i> 每日修行</div>
         
@@ -153,7 +169,12 @@
         <h2 class="view-title">將觸動化為工具</h2>
         <p class="view-subtitle">請將你想消化的金句貼在下方，我會幫你拆解它。</p>
 
-        <textarea id="quote-input" class="modern-textarea" rows="4" placeholder="例如：追求完美是拖延的偽裝..."></textarea>
+        <div style="position:relative;">
+          <textarea id="quote-input" class="modern-textarea" rows="4" placeholder="例如：追求完美是拖延的偽裝..."></textarea>
+          <button class="mic-btn" id="mic-btn-quote" onclick="startVoiceInput('quote-input', 'mic-btn-quote')" title="語音輸入">
+            <i class="ph-fill ph-microphone"></i>
+          </button>
+        </div>
         
         <div class="add-actions">
           <button class="primary-btn" id="btn-analyze" onclick="processNewQuote()">
@@ -368,7 +389,12 @@
         <!-- Phase 1: Input -->
         <div id="mailbox-phase-input" class="mailbox-phase active">
           <p style="color: var(--text-primary); margin-bottom: 16px; line-height: 1.6;">遇到了什麼煩心事呢？寫下它，我們從你的收藏中找一句話送你...</p>
-          <textarea id="mailbox-textarea" class="mailbox-textarea" placeholder="例如：最近因為一件小錯一直苛責自己..."></textarea>
+          <div style="position:relative;">
+            <textarea id="mailbox-textarea" class="mailbox-textarea" placeholder="例如：最近因為一件小錯一直苛責自己..."></textarea>
+            <button class="mic-btn" id="mic-btn-mailbox" onclick="startVoiceInput('mailbox-textarea', 'mic-btn-mailbox')" title="語音輸入">
+              <i class="ph-fill ph-microphone"></i>
+            </button>
+          </div>
           <button class="primary-btn" onclick="submitMailbox()" style="width:100%; margin-top: 16px;">
             <i class="ph-fill ph-paper-plane-tilt"></i> 寄出專屬信件
           </button>

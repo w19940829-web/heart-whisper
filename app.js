@@ -79,6 +79,9 @@ function updateDashboard() {
   const now = new Date().getTime();
   const dueQuotes = quotesDb.filter(q => q.nextReviewDate <= now);
   document.getElementById('due-count').textContent = dueQuotes.length;
+  
+  // Update Soul Garden
+  updateSoulGarden();
 }
 
 let toastQueue = [];
@@ -465,6 +468,7 @@ function saveQuote() {
   localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
   
   showToast('🌸 金句已收錄為你的專屬工具！');
+  addSoulPoints(3);
   
   // Cleanup
   document.getElementById('quote-input').value = '';
@@ -650,6 +654,7 @@ function submitGrade(grade) {
     quotesDb[dbIdx].nextReviewDate = now + (nextIntervalHours * 60 * 60 * 1000);
     quotesDb[dbIdx].history.push({ date: now, grade: grade });
     localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
+    addSoulPoints(grade === 'easy' ? 2 : 1);
   }
   
   // Show Encouragement
@@ -899,6 +904,12 @@ function renderLibrary(activeCategory) {
           <button class="btn-delete-quote" title="刪除金句" onclick="deleteQuote('${q.id}')">🗑️</button>
         </div>
       </div>
+      <div class="lib-card-note-area" id="note-area-${q.id}">
+        ${q.personal_note 
+          ? `<div class="lib-note-display" ondblclick="editNote('${q.id}')">${q.personal_note}</div>`
+          : `<button class="btn-add-note" onclick="showNoteInput('${q.id}')"><i class="ph-bold ph-note-pencil"></i> 貼便利貼</button>`
+        }
+      </div>
     `;
     gridContainer.appendChild(card);
   });
@@ -962,6 +973,7 @@ async function submitMailbox() {
     
     document.querySelectorAll('.mailbox-phase').forEach(el => el.classList.remove('active'));
     document.getElementById('mailbox-phase-result').classList.add('active');
+    addSoulPoints(2);
     
   } catch (err) {
     console.error(err);
@@ -1700,4 +1712,174 @@ function forceAppUpdate() {
   const currentUrl = window.location.href.split('?')[0];
   const cb = new Date().getTime();
   window.location.replace(`${currentUrl}?v=${cb}`);
+}
+
+// ================================
+// 13. Voice Input (語音傾訴)
+// ================================
+let currentRecognition = null;
+
+function startVoiceInput(textareaId, btnId) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    showToast('您的瀏覽器不支援語音辨識，請使用 Chrome 或 Safari。');
+    return;
+  }
+  
+  const btn = document.getElementById(btnId);
+  
+  // If already recording, stop it
+  if (currentRecognition) {
+    currentRecognition.stop();
+    currentRecognition = null;
+    btn.classList.remove('recording');
+    return;
+  }
+  
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'zh-TW';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  currentRecognition = recognition;
+  
+  btn.classList.add('recording');
+  showToast('🎤 正在聆聽，請開始說話...');
+  
+  let finalTranscript = '';
+  const textarea = document.getElementById(textareaId);
+  const existingText = textarea.value;
+  
+  recognition.onresult = (event) => {
+    let interim = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalTranscript += transcript;
+      } else {
+        interim += transcript;
+      }
+    }
+    textarea.value = existingText + finalTranscript + interim;
+  };
+  
+  recognition.onerror = (event) => {
+    console.error('Speech recognition error:', event.error);
+    btn.classList.remove('recording');
+    currentRecognition = null;
+    if (event.error === 'not-allowed') {
+      showToast('需要麥克風權限才能使用語音輸入。');
+    } else {
+      showToast('語音辨識發生錯誤，請重試。');
+    }
+  };
+  
+  recognition.onend = () => {
+    btn.classList.remove('recording');
+    currentRecognition = null;
+    if (finalTranscript) {
+      textarea.value = existingText + finalTranscript;
+      showToast('✅ 語音輸入完成！');
+    }
+  };
+  
+  recognition.start();
+}
+
+// ================================
+// 14. Soul Garden (心靈花園)
+// ================================
+function getSoulPoints() {
+  return parseInt(localStorage.getItem('hw_soul_points') || '0');
+}
+
+function addSoulPoints(amount) {
+  const current = getSoulPoints();
+  const newTotal = current + amount;
+  localStorage.setItem('hw_soul_points', newTotal.toString());
+  updateSoulGarden();
+  spawnSparkles(amount);
+}
+
+function updateSoulGarden() {
+  const points = getSoulPoints();
+  const el = document.getElementById('soul-points-count');
+  if (el) el.textContent = points;
+  
+  // Tree growth levels: 0-4, 5-14, 15-29, 30-49, 50-99, 100+
+  const crown = document.getElementById('tree-crown');
+  if (!crown) return;
+  
+  crown.className = 'tree-crown';
+  if (points < 5) crown.classList.add('level-0');
+  else if (points < 15) crown.classList.add('level-1');
+  else if (points < 30) crown.classList.add('level-2');
+  else if (points < 50) crown.classList.add('level-3');
+  else if (points < 100) crown.classList.add('level-4');
+  else crown.classList.add('level-5');
+}
+
+function spawnSparkles(count) {
+  const container = document.getElementById('soul-sparkles');
+  if (!container) return;
+  
+  for (let i = 0; i < Math.min(count, 8); i++) {
+    setTimeout(() => {
+      const dot = document.createElement('div');
+      dot.className = 'sparkle-dot';
+      dot.style.left = (20 + Math.random() * 40) + 'px';
+      dot.style.top = (10 + Math.random() * 40) + 'px';
+      container.appendChild(dot);
+      setTimeout(() => dot.remove(), 2200);
+    }, i * 150);
+  }
+}
+
+// ================================
+// 15. Sticky Notes (共鳴便利貼)
+// ================================
+function showNoteInput(quoteId) {
+  const area = document.getElementById(`note-area-${quoteId}`);
+  if (!area) return;
+  area.innerHTML = `
+    <div class="note-input-area">
+      <input type="text" id="note-input-${quoteId}" placeholder="寫下這句話讓你想到什麼..." maxlength="100" />
+      <button onclick="saveNote('${quoteId}')">貼上</button>
+    </div>
+  `;
+  setTimeout(() => document.getElementById(`note-input-${quoteId}`)?.focus(), 100);
+}
+
+function editNote(quoteId) {
+  const q = quotesDb.find(q => String(q.id) === String(quoteId));
+  if (!q) return;
+  const area = document.getElementById(`note-area-${quoteId}`);
+  if (!area) return;
+  area.innerHTML = `
+    <div class="note-input-area">
+      <input type="text" id="note-input-${quoteId}" value="${q.personal_note || ''}" maxlength="100" />
+      <button onclick="saveNote('${quoteId}')">更新</button>
+    </div>
+  `;
+  setTimeout(() => document.getElementById(`note-input-${quoteId}`)?.focus(), 100);
+}
+
+function saveNote(quoteId) {
+  const input = document.getElementById(`note-input-${quoteId}`);
+  if (!input) return;
+  const noteText = input.value.trim();
+  
+  const idx = quotesDb.findIndex(q => String(q.id) === String(quoteId));
+  if (idx === -1) return;
+  
+  quotesDb[idx].personal_note = noteText;
+  localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
+  
+  const area = document.getElementById(`note-area-${quoteId}`);
+  if (noteText) {
+    area.innerHTML = `<div class="lib-note-display" ondblclick="editNote('${quoteId}')">${noteText}</div>`;
+    showToast('📌 便利貼已貼上！');
+  } else {
+    area.innerHTML = `<button class="btn-add-note" onclick="showNoteInput('${quoteId}')"><i class="ph-bold ph-note-pencil"></i> 貼便利貼</button>`;
+    showToast('便利貼已移除');
+  }
 }
