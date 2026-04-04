@@ -907,7 +907,7 @@ function renderLibrary(activeCategory) {
 function deleteQuote(id) {
   if (confirm("確定要讓這句金句隨風而去嗎？")) {
     quotesDb = quotesDb.filter(q => String(q.id) !== String(id));
-    saveQuotes();
+    localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
     showToast("金句已移除 🍃");
     renderLibrary(document.getElementById('library-category-select')?.value || '全部');
     updateDashboard();
