@@ -79,10 +79,6 @@ function updateDashboard() {
   const now = new Date().getTime();
   const dueQuotes = quotesDb.filter(q => q.nextReviewDate <= now);
   document.getElementById('due-count').textContent = dueQuotes.length;
-  
-  // Fake Streak logic based on daily log
-  const streak = localStorage.getItem('hw_streak') || 0;
-  document.getElementById('stat-streak').textContent = streak;
 }
 
 let toastQueue = [];
@@ -897,13 +893,83 @@ function renderLibrary(activeCategory) {
       </div>
       <div class="lib-card-quote">${q.original}</div>
       <div class="lib-card-meta">
-        <span>${emotionEmoji} ${anchorDisplay}</span>
-        <button class="icon-btn" onclick="playTTS('${q.original.replace(/'/g, "\\'")}')">🔊</button>
+        <span style="display:flex; align-items:center; gap:6px;">${emotionEmoji} ${anchorDisplay}</span>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <button class="icon-btn" onclick="playTTS('${q.original.replace(/'/g, "\\'")}')">🔊</button>
+          <button class="btn-delete-quote" title="刪除金句" onclick="deleteQuote('${q.id}')">🗑️</button>
+        </div>
       </div>
     `;
     gridContainer.appendChild(card);
   });
 }
+
+function deleteQuote(id) {
+  if (confirm("確定要讓這句金句隨風而去嗎？")) {
+    quotesDb = quotesDb.filter(q => q.id !== id);
+    saveQuotes();
+    showToast("金句已移除 🍃");
+    renderLibrary(document.getElementById('library-category-select')?.value || '全部');
+    updateDashboard();
+  }
+}
+
+// --- Mailbox ---
+function openMailbox() {
+  switchView('view-mailbox');
+  resetMailbox();
+}
+
+function resetMailbox() {
+  document.getElementById('mailbox-textarea').value = '';
+  document.querySelectorAll('.mailbox-phase').forEach(el => el.classList.remove('active'));
+  document.getElementById('mailbox-phase-input').classList.add('active');
+}
+
+async function submitMailbox() {
+  const text = document.getElementById('mailbox-textarea').value.trim();
+  if (!text) {
+    showToast("請寫點什麼再寄出喔！");
+    return;
+  }
+  
+  if (quotesDb.length === 0) {
+    showToast("您的金句庫空空如也，先去採集一些金句吧！");
+    return;
+  }
+
+  // Next Phase Loading
+  document.querySelectorAll('.mailbox-phase').forEach(el => el.classList.remove('active'));
+  document.getElementById('mailbox-phase-loading').classList.add('active');
+
+  try {
+    const result = await aiService.solveWorry(text, quotesDb);
+    
+    // Check if result has valid quote
+    const assignedQuote = quotesDb.find(q => q.id === result.selected_quote_id) || quotesDb[Math.floor(Math.random() * quotesDb.length)];
+    
+    // Render Phase 3
+    const cardEl = document.getElementById('mailbox-result-card');
+    cardEl.innerHTML = `
+      <div style="background:var(--bg-primary); padding:24px; border-radius:24px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.05); position:relative; overflow:hidden;">
+        <div style="font-size:8rem; opacity:0.04; position:absolute; top:-20px; left:10px; font-family:'Times New Roman',serif; line-height:1;">“</div>
+        <p style="color:var(--text-secondary); font-size:0.98rem; line-height:1.6; margin-bottom: 24px; padding:0 12px; position:relative; z-index:2;">${result.healing_message}</p>
+        <div style="padding: 24px 20px; background:linear-gradient(135deg, var(--bg-secondary) 0%, transparent 100%); border-radius:18px; position:relative; z-index:2;">
+          <p style="font-family:'Noto Serif TC', serif; font-size:1.3rem; font-weight:600; color:var(--text-primary); line-height:1.7; word-break:break-all;">${assignedQuote.original}</p>
+        </div>
+      </div>
+    `;
+    
+    document.querySelectorAll('.mailbox-phase').forEach(el => el.classList.remove('active'));
+    document.getElementById('mailbox-phase-result').classList.add('active');
+    
+  } catch (err) {
+    console.error(err);
+    showToast("翻閱遇到了點小阻礙，請重試一次。");
+    resetMailbox();
+  }
+}
+
 
 // 3. Slideshow
 let currentSlides = [];

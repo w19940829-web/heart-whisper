@@ -120,15 +120,16 @@
         </div>
 
         <!-- Stats Overview -->
-        <div class="dashboard-section-title">統計</div>
+        <div class="dashboard-section-title">數據與解憂信箱</div>
         <div class="stats-overview">
-          <div class="stat-item">
+          <div class="stat-item" style="flex:1;">
             <div class="stat-num" id="stat-total">0</div>
             <div class="stat-label">總金句</div>
           </div>
-          <div class="stat-item">
-            <div class="stat-num" id="stat-streak">0</div>
-            <div class="stat-label">連續陪伴天數</div>
+          <div class="stat-item mailbox-btn" onclick="openMailbox()">
+            <div style="font-size: 1.8rem; margin-bottom: 4px;">📝</div>
+            <div class="stat-label" style="font-size:1.05rem; font-weight:600; color:var(--text-dark);">解憂信箱</div>
+            <div style="font-size: 0.75rem; color:var(--text-secondary); margin-top:2px;">向金句庫傾訴</div>
           </div>
         </div>
         
@@ -352,6 +353,41 @@
             </div>
           </div>
 
+        </div>
+      </section>
+
+      <!-- ====================== -->
+      <!-- VIEW: MAILBOX          -->
+      <!-- ====================== -->
+      <section class="view" id="view-mailbox">
+        <div class="view-header" style="justify-content: space-between;">
+          <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0; color: var(--text-dark);">📝 解憂信箱</h2>
+          <button class="icon-btn" onclick="switchView('view-home')"><i class="ph-bold ph-x"></i></button>
+        </div>
+        
+        <!-- Phase 1: Input -->
+        <div id="mailbox-phase-input" class="mailbox-phase active">
+          <p style="color: var(--text-primary); margin-bottom: 16px; line-height: 1.6;">遇到了什麼煩心事呢？寫下它，我們從你的收藏中找一句話送你...</p>
+          <textarea id="mailbox-textarea" class="mailbox-textarea" placeholder="例如：最近因為一件小錯一直苛責自己..."></textarea>
+          <button class="primary-btn" onclick="submitMailbox()" style="width:100%; margin-top: 16px;">
+            <i class="ph-fill ph-paper-plane-tilt"></i> 寄出專屬信件
+          </button>
+        </div>
+        
+        <!-- Phase 2: Loading State -->
+        <div id="mailbox-phase-loading" class="mailbox-phase">
+          <div class="glow-orb" id="mailbox-glow-orb"></div>
+          <p style="margin-top:32px; color:var(--text-secondary); font-size:0.95rem;">正在輕輕翻閱你的金句...<br>尋找最適合的答案</p>
+        </div>
+        
+        <!-- Phase 3: Result -->
+        <div id="mailbox-phase-result" class="mailbox-phase">
+          <div class="mailbox-result-card" id="mailbox-result-card">
+            <!-- Rendered via JS -->
+          </div>
+          <button class="secondary-btn" onclick="resetMailbox()" style="width:100%; margin-top: 16px;">
+            <i class="ph-bold ph-arrow-counter-clockwise"></i> 再寫一封
+          </button>
         </div>
       </section>
 

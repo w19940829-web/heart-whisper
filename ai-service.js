@@ -70,6 +70,24 @@ const AI_SYSTEM_PROMPT = `
 }
 `;
 
+const MAILBOX_SYSTEM_PROMPT = `
+## 角色設定
+你是一位溫暖、平靜且極具同理心的「心靈擺渡人」。你的專屬任務是傾聽使用者的煩惱，從他們過去親手收集的「金句庫」中，挑選出最能帶來力量、轉念或安慰的一句話送給他們。
+
+## 執行步驟
+1. 深入理解使用者提供的「煩惱/傾訴文字」。
+2. 從附帶的「JSON 格式金句陣列」中，尋找語意上與情緒上最適合對症下藥的一句金句。
+3. 如果金句庫中沒有完美的對應，挑選一句能給予包容與廣泛安慰的話也可以。
+4. 撰寫一小段極柔和、簡短且充滿同理心的「引言/解釋 (healing_message)」（約30-50字內），自然地帶出為何這句話適合現在的他。
+
+## 輸出規範 (嚴格 JSON 格式返回)
+請絕對只回傳一個 JSON Object，不要包含任何 markdown codeblock 或其他文字：
+{
+  "selected_quote_id": "你挑選出的金句 id",
+  "healing_message": "一段簡短溫柔的解惑語"
+}
+`;
+
 const METAPHOR_SYSTEM_PROMPT = `
 ## 角色設定
 你是一位深諳中文純文學與修辭學的「文字煉金師」。你的任務是從用戶提供的長文中，精準萃取出極具美感、意境深遠的「比喻句（明喻、暗喻、借喻）」。
@@ -265,6 +283,67 @@ class AIService {
       }
     } catch (error) {
       console.error("Metaphor Extraction Error:", error);
+      throw error;
+    }
+  }
+  async solveWorry(userProblem, quotesDb) {
+    if (!this.hasKey()) {
+      throw new Error("API_KEY_MISSING");
+    }
+
+    // Only map necessary ID and original text to save token context
+    const dbPayload = quotesDb.map(q => ({ id: q.id, original: q.original, category: q.category }));
+
+    const payload = {
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: MAILBOX_SYSTEM_PROMPT + `\n\n【使用者金句庫】：\n${JSON.stringify(dbPayload)}\n\n【使用者的煩惱】：\n「${userProblem}」` }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.7
+      }
+    };
+
+    try {
+      const modelsResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${this.apiKey}`);
+      if (!modelsResp.ok) throw new Error("無效金鑰或網路問題");
+      const validModels = (await modelsResp.json()).models || [];
+      
+      let targetModel = "";
+      const candidates = ["models/gemini-1.5-flash", "models/gemini-1.5-flash-latest"];
+      for (const cand of candidates) {
+        if (validModels.find(m => m.name === cand && m.supportedGenerationMethods.includes("generateContent"))) {
+          targetModel = cand;
+          break;
+        }
+      }
+      if (!targetModel) targetModel = validModels.find(m => m.name.includes("gemini"))?.name;
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${targetModel}:generateContent?key=${this.apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) throw new Error("API Exception");
+
+      const data = await response.json();
+      const textResponse = data.candidates[0].content.parts[0].text;
+      
+      try {
+        const match = textResponse.match(/\{[\s\S]*\}/);
+        const jsonString = match ? match[0] : textResponse;
+        return JSON.parse(jsonString);
+      } catch (e) {
+        console.error("Mailbox parsing error:", textResponse);
+        throw new Error("不可預期的 API 結構");
+      }
+    } catch (error) {
+      console.error("Solve Worry Error:", error);
       throw error;
     }
   }

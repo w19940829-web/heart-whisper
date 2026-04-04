@@ -1758,3 +1758,101 @@ body {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* --- Mailbox CSS --- */
+.mailbox-btn:active {
+  transform: scale(0.96);
+}
+.mailbox-btn:hover {
+  background: var(--bg-primary) !important;
+  border-color: var(--accent-calm) !important;
+}
+.mailbox-phase {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 200px);
+}
+.mailbox-phase.active {
+  display: flex;
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.mailbox-textarea {
+  width: 100%;
+  height: 220px;
+  background: #fff;
+  border: 1.5px solid rgba(0,0,0,0.08);
+  border-radius: 16px;
+  padding: 20px;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  resize: none;
+  font-family: inherit;
+  color: var(--text-primary);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.02);
+  transition: border-color 0.3s;
+}
+.mailbox-textarea:focus {
+  outline: none;
+  border-color: var(--accent-calm);
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.glow-orb {
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle, rgba(163,177,166,0.6), rgba(212,189,165,0.3));
+  border-radius: 50%;
+  filter: blur(4px);
+  animation: glowBreathe 2.5s ease-in-out infinite alternate;
+  box-shadow: 0 0 20px rgba(163,177,166,0.4);
+}
+
+@keyframes glowBreathe {
+  0% { transform: scale(0.85); opacity: 0.6; }
+  100% { transform: scale(1.25); opacity: 1; box-shadow: 0 0 50px rgba(163,177,166,0.6); }
+}
+
+.mailbox-result-card {
+  animation: popScale 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  width: 100%;
+}
+
+@keyframes popScale {
+  0% { opacity: 0; transform: scale(0.95) translateY(10px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Delete btn on library card */
+.btn-delete-quote {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity 0.2s, color 0.2s;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-delete-quote:hover {
+  opacity: 1;
+  color: #e57373;
+  background: rgba(229,115,115,0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .mailbox-textarea {
+    background: var(--bg-secondary);
+    border-color: rgba(255,255,255,0.05);
+    color: var(--text-primary);
+  }
+}
