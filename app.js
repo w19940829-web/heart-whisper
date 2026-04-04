@@ -1,5 +1,6 @@
 // Core App State & Logic
 let quotesDb = JSON.parse(localStorage.getItem('hw_quotes')) || [];
+let mailboxDb = JSON.parse(localStorage.getItem('hw_mailboxDb')) || [];
 let currentProcessingQuote = null;
 let currentReviewSession = [];
 let reviewIndex = 0;
@@ -140,7 +141,7 @@ function exportData() {
     return;
   }
   
-  const data = { quotes: quotesDb, streak: localStorage.getItem('hw_streak') || 0 };
+  const data = { quotes: quotesDb, streak: localStorage.getItem('hw_streak') || 0, mailbox: mailboxDb };
   const dataStr = JSON.stringify(data, null, 2);
   const blob = new Blob([dataStr], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -175,11 +176,13 @@ function importData(event) {
       } else if (importedData.quotes && Array.isArray(importedData.quotes)) {
         quotesDb = importedData.quotes;
         if(importedData.streak) localStorage.setItem('hw_streak', importedData.streak);
+        if(importedData.mailbox) mailboxDb = importedData.mailbox;
       } else {
         throw new Error('不支援的檔案格式，請確認是否為心語漫遊備份檔。');
       }
       
       localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
+      localStorage.setItem('hw_mailboxDb', JSON.stringify(mailboxDb));
       
       showToast('📥 備份資料已成功還原！');
       updateDashboard();
@@ -193,81 +196,6 @@ function importData(event) {
     event.target.value = '';
   };
   reader.readAsText(file);
-}
-
-async function batchUpgradeOldQuotes() {
-  if (!aiService.hasKey()) {
-    showToast('請先填寫上方 Gemini API Key 才能執行升級喔！');
-    return;
-  }
-  
-  // Old categories were: 信仰微光, 情緒療癒, 激勵行動, 生活體悟
-  const oldCats = ['信仰微光', '情緒療癒', '激勵行動', '生活體悟'];
-  const oldQuotes = quotesDb.filter(q => !q.category || oldCats.includes(q.category));
-  
-  if (oldQuotes.length === 0) {
-    showToast('所有金句都已經是最新版本囉！✨');
-    return;
-  }
-  
-  if (!confirm(`找到 ${oldQuotes.length} 句還沒有功能分類的金句，請問是否要開始升級？這可能會需要跑一陣子喔！`)) {
-    return;
-  }
-  
-  const btn = document.getElementById('btn-batch-upgrade');
-  if(btn) {
-    btn.disabled = true;
-    btn.innerHTML = `<span class="loading-spinner" style="display:inline-block; margin-right:8px;"></span> 升級中... (0/${oldQuotes.length})`;
-  }
-  
-  let successCount = 0;
-  for (let i = 0; i < oldQuotes.length; i++) {
-    const q = oldQuotes[i];
-    try {
-      if(btn) btn.innerHTML = `<span class="loading-spinner" style="display:inline-block; margin-right:8px;"></span> 升級中... (${i+1}/${oldQuotes.length})`;
-      
-      const res = await aiService.processNewQuote(q.original);
-      
-      // Update original object in quotesDb (safely by finding its index)
-      const dbIdx = quotesDb.findIndex(dbq => dbq.id === q.id);
-      if (dbIdx > -1) {
-        // Merge AI result (includes new category and emotional_anchors)
-        quotesDb[dbIdx] = { ...quotesDb[dbIdx], ...res };
-        
-        // Ensure user_anchor is synchronized for backward compatibility
-        const primaryTrigger = res.emotional_anchors?.primary;
-        if (primaryTrigger) {
-          quotesDb[dbIdx].user_anchor = primaryTrigger;
-        } else {
-          // Fallback if AI didn't return perfect structure
-          const tags = res.reflection_anchor?.suggested_tags || res.reflection_anchor?.suggested_scenarios || ["#未分類"];
-          quotesDb[dbIdx].user_anchor = tags[0];
-        }
-
-        // Save progress immediately
-        localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
-        successCount++;
-      }
-      
-      // Rate limiting mitigation: wait ~2000ms
-      await new Promise(r => setTimeout(r, 2000));
-      
-    } catch(err) {
-      console.warn(`升級失敗 (ID: ${q.id}): `, err);
-      // Wait a bit longer if it's an error block
-      await new Promise(r => setTimeout(r, 4000));
-    }
-  }
-  
-  if(btn) {
-    btn.disabled = false;
-    btn.innerHTML = `<i class="ph-fill ph-rocket-launch"></i> 升級完成 (${successCount}/${oldQuotes.length})`;
-    setTimeout(() => { btn.innerHTML = `<i class="ph-fill ph-rocket-launch"></i> 開始自動升級`; }, 3000);
-  }
-  
-  showToast(`✅ 完成！成功升級 ${successCount} 句金句`);
-  updateDashboard();
-  if (typeof renderLibrary === 'function') renderLibrary();
 }
 
 /* --- ADD NEW QUOTE (PHASE 1) --- */
@@ -835,15 +763,26 @@ function openLibrary() {
 function renderLibrary(activeCategory) {
   const gridContainer = document.getElementById('library-grid');
   const select = document.getElementById('library-category-select');
+  const searchInput = document.getElementById('library-search');
   if (select) {
     select.value = activeCategory || '全部';
   }
   
   // Render Cards
   gridContainer.innerHTML = '';
-  const filteredQuotes = (!activeCategory || activeCategory === '全部') 
+  let filteredQuotes = (!activeCategory || activeCategory === '全部') 
     ? [...quotesDb].reverse() 
     : quotesDb.filter(q => (q.category || '').includes(activeCategory)).reverse();
+    
+  if (searchInput && searchInput.value.trim() !== '') {
+    const term = searchInput.value.trim().toLowerCase();
+    filteredQuotes = filteredQuotes.filter(q => {
+      const text = (q.original || '').toLowerCase();
+      const anchor = (getQuoteAnchor(q) || '').toLowerCase();
+      const cat = (q.category || '').toLowerCase();
+      return text.includes(term) || anchor.includes(term) || cat.includes(term);
+    });
+  }
     
   if (filteredQuotes.length === 0) {
     gridContainer.innerHTML = `
@@ -893,6 +832,7 @@ function renderLibrary(activeCategory) {
         <div class="lib-card-badges">
           <span class="lib-badge energy-badge" title="${energyText}">${energySymbol}</span>
           <span class="lib-badge cat-badge">${cat}</span>
+          <button class="btn-edit-category" onclick="openEditPanel('${q.id}', event)" title="重新分類">✏️</button>
         </div>
         <div class="lib-emoji">${emoji}</div>
       </div>
@@ -943,11 +883,6 @@ async function submitMailbox() {
     showToast("請寫點什麼再寄出喔！");
     return;
   }
-  
-  if (quotesDb.length === 0) {
-    showToast("您的金句庫空空如也，先去採集一些金句吧！");
-    return;
-  }
 
   // Next Phase Loading
   document.querySelectorAll('.mailbox-phase').forEach(el => el.classList.remove('active'));
@@ -956,24 +891,43 @@ async function submitMailbox() {
   try {
     const result = await aiService.solveWorry(text, quotesDb);
     
-    // Check if result has valid quote
-    const assignedQuote = quotesDb.find(q => q.id === result.selected_quote_id) || quotesDb[Math.floor(Math.random() * quotesDb.length)];
+    // Quote section (only if library has entries)
+    let quoteHtml = '';
+    if (quotesDb.length > 0) {
+      const assignedQuote = quotesDb.find(q => String(q.id) === String(result.selected_quote_id)) || quotesDb[Math.floor(Math.random() * quotesDb.length)];
+      quoteHtml = '<div style="padding:24px 20px;background:linear-gradient(135deg,var(--bg-secondary) 0%,transparent 100%);border-radius:18px;position:relative;z-index:2;"><p style="font-family:Noto Serif TC,serif;font-size:1.3rem;font-weight:600;color:var(--text-primary);line-height:1.7;word-break:break-all;">' + assignedQuote.original + '</p></div>';
+    }
+    
+    // Bible verses section
+    let bibleHtml = '';
+    if (result.bible_verses && result.bible_verses.length > 0) {
+      const versesInner = result.bible_verses.map(function(v) {
+        return '<div class="bible-verse-item"><p class="bible-verse-text">' + v.text + '</p><span class="bible-verse-ref">── ' + v.ref + '</span></div>';
+      }).join('');
+      bibleHtml = '<div class="bible-section"><div class="bible-section-title">📖 來自聖經的回應</div>' + versesInner + '</div>';
+    }
     
     // Render Phase 3
     const cardEl = document.getElementById('mailbox-result-card');
-    cardEl.innerHTML = `
-      <div style="background:var(--bg-primary); padding:24px; border-radius:24px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.05); position:relative; overflow:hidden;">
-        <div style="font-size:8rem; opacity:0.04; position:absolute; top:-20px; left:10px; font-family:'Times New Roman',serif; line-height:1;">“</div>
-        <p style="color:var(--text-secondary); font-size:0.98rem; line-height:1.6; margin-bottom: 24px; padding:0 12px; position:relative; z-index:2;">${result.healing_message}</p>
-        <div style="padding: 24px 20px; background:linear-gradient(135deg, var(--bg-secondary) 0%, transparent 100%); border-radius:18px; position:relative; z-index:2;">
-          <p style="font-family:'Noto Serif TC', serif; font-size:1.3rem; font-weight:600; color:var(--text-primary); line-height:1.7; word-break:break-all;">${assignedQuote.original}</p>
-        </div>
-      </div>
-    `;
+    cardEl.innerHTML = '<div style="background:var(--bg-primary);padding:24px;border-radius:24px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.05);position:relative;overflow:hidden;"><div style="font-size:8rem;opacity:0.04;position:absolute;top:-20px;left:10px;font-family:Times New Roman,serif;line-height:1;">“</div><p style="color:var(--text-secondary);font-size:0.98rem;line-height:1.6;margin-bottom:24px;padding:0 12px;position:relative;z-index:2;">' + result.healing_message + '</p>' + quoteHtml + '</div>' + bibleHtml;
     
     document.querySelectorAll('.mailbox-phase').forEach(el => el.classList.remove('active'));
     document.getElementById('mailbox-phase-result').classList.add('active');
     addSoulPoints(2);
+      
+      // Save to mailboxDb
+      const record = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        userWorry: text,
+        aiMessage: result.healing_message,
+        bibleVerses: result.bible_verses || [],
+        quoteId: result.selected_quote_id || null,
+        quoteHtml: quoteHtml
+      };
+      mailboxDb.unshift(record); // Add to beginning
+      localStorage.setItem('hw_mailboxDb', JSON.stringify(mailboxDb));
+      
     
   } catch (err) {
     console.error(err);
@@ -1881,5 +1835,203 @@ function saveNote(quoteId) {
   } else {
     area.innerHTML = `<button class="btn-add-note" onclick="showNoteInput('${quoteId}')"><i class="ph-bold ph-note-pencil"></i> 貼便利貼</button>`;
     showToast('便利貼已移除');
+  }
+}
+
+// ================================
+// 16. Category Edit (分類重新編輯)
+// ================================
+let editingQuoteId = null;
+let editSelectedEmotion = null;
+let editSelectedTrigger = null;
+
+function openEditPanel(quoteId, event) {
+  event.stopPropagation();
+  
+  // Close any existing edit panel
+  document.querySelectorAll('.edit-panel').forEach(el => el.remove());
+  
+  const q = quotesDb.find(q => String(q.id) === String(quoteId));
+  if (!q) return;
+  
+  editingQuoteId = quoteId;
+  editSelectedEmotion = getQuoteEmotion(q);
+  editSelectedTrigger = getQuoteAnchor(q);
+  
+  const card = event.target.closest('.lib-card');
+  if (!card) return;
+  
+  // Build category options
+  const catOptions = Object.keys(CATEGORY_MAP).map(c => {
+    const selected = (q.category === c) ? 'selected' : '';
+    return '<option value="' + c + '" ' + selected + '>' + c + '</option>';
+  }).join('');
+  
+  // Build emotion chips
+  const emotionChips = Object.entries(EMOTION_VOCAB).map(([emotion, data]) => {
+    const sel = (emotion === editSelectedEmotion) ? 'selected' : '';
+    return '<button class="edit-emotion-chip ' + sel + '" onclick="selectEditEmotion(\'' + emotion + '\', \'' + quoteId + '\')">' + data.emoji + ' ' + emotion + '</button>';
+  }).join('');
+  
+  // Build trigger chips for current emotion
+  const triggerHtml = buildTriggerChips(editSelectedEmotion, editSelectedTrigger, quoteId);
+  
+  const panel = document.createElement('div');
+  panel.className = 'edit-panel';
+  panel.id = 'edit-panel-' + quoteId;
+  panel.innerHTML = 
+    '<div class="edit-panel-label">功能分類</div>' +
+    '<select id="edit-cat-' + quoteId + '">' + catOptions + '</select>' +
+    '<div class="edit-panel-label">核心情緒</div>' +
+    '<div class="edit-emotion-grid">' + emotionChips + '</div>' +
+    '<div class="edit-panel-label">觸發情境</div>' +
+    '<div class="edit-trigger-grid" id="edit-triggers-' + quoteId + '">' + triggerHtml + '</div>' +
+    '<div class="edit-panel-actions">' +
+      '<button class="edit-cancel-btn" onclick="closeEditPanel(\'' + quoteId + '\')">取消</button>' +
+      '<button class="edit-save-btn" onclick="saveEditPanel(\'' + quoteId + '\')">儲存</button>' +
+    '</div>';
+  
+  card.appendChild(panel);
+}
+
+function buildTriggerChips(emotion, currentTrigger, quoteId) {
+  const triggers = EMOTION_VOCAB[emotion]?.triggers || [];
+  return triggers.map(t => {
+    const sel = (t === currentTrigger) ? 'selected' : '';
+    return '<button class="edit-trigger-chip ' + sel + '" onclick="selectEditTrigger(\'' + t + '\', \'' + quoteId + '\')">' + t + '</button>';
+  }).join('');
+}
+
+function selectEditEmotion(emotion, quoteId) {
+  editSelectedEmotion = emotion;
+  editSelectedTrigger = null;
+  
+  // Update emotion chip visuals
+  const panel = document.getElementById('edit-panel-' + quoteId);
+  if (!panel) return;
+  panel.querySelectorAll('.edit-emotion-chip').forEach(el => el.classList.remove('selected'));
+  event.target.classList.add('selected');
+  
+  // Rebuild trigger chips
+  const triggerContainer = document.getElementById('edit-triggers-' + quoteId);
+  if (triggerContainer) {
+    triggerContainer.innerHTML = buildTriggerChips(emotion, null, quoteId);
+  }
+}
+
+function selectEditTrigger(trigger, quoteId) {
+  editSelectedTrigger = trigger;
+  const container = document.getElementById('edit-triggers-' + quoteId);
+  if (!container) return;
+  container.querySelectorAll('.edit-trigger-chip').forEach(el => el.classList.remove('selected'));
+  event.target.classList.add('selected');
+}
+
+function closeEditPanel(quoteId) {
+  const panel = document.getElementById('edit-panel-' + quoteId);
+  if (panel) panel.remove();
+  editingQuoteId = null;
+}
+
+function saveEditPanel(quoteId) {
+  const idx = quotesDb.findIndex(q => String(q.id) === String(quoteId));
+  if (idx === -1) return;
+  
+  const catSelect = document.getElementById('edit-cat-' + quoteId);
+  const newCategory = catSelect ? catSelect.value : quotesDb[idx].category;
+  
+  quotesDb[idx].category = newCategory;
+  
+  if (editSelectedEmotion) {
+    if (!quotesDb[idx].emotional_anchors) quotesDb[idx].emotional_anchors = {};
+    quotesDb[idx].emotional_anchors.primary_emotion = editSelectedEmotion;
+  }
+  
+  if (editSelectedTrigger) {
+    if (!quotesDb[idx].emotional_anchors) quotesDb[idx].emotional_anchors = {};
+    quotesDb[idx].emotional_anchors.primary = editSelectedTrigger;
+    quotesDb[idx].user_anchor = editSelectedTrigger;
+  }
+  
+  localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
+  showToast('分類已更新 ✨');
+  
+  closeEditPanel(quoteId);
+  renderLibrary(document.getElementById('library-category-select')?.value || '全部');
+}
+
+
+// --- Mailbox History & UI ---
+function switchMailboxTab(tabId) {
+  document.getElementById('mtab-mailbox-new').classList.remove('active');
+  document.getElementById('mtab-mailbox-history').classList.remove('active');
+  document.getElementById('mailbox-view-new').style.display = 'none';
+  document.getElementById('mailbox-view-history').style.display = 'none';
+  
+  document.getElementById('mtab-mailbox-' + tabId).classList.add('active');
+  document.getElementById('mailbox-view-' + tabId).style.display = 'block';
+  
+  if (tabId === 'history') {
+    renderMailboxHistory();
+  }
+}
+
+function renderMailboxHistory() {
+  const container = document.getElementById('mailbox-history-container');
+  if (mailboxDb.length === 0) {
+    container.innerHTML = '<div style="text-align:center; padding: 32px 0; color:var(--text-secondary);"><i class="ph-fill ph-envelope-simple" style="font-size:3rem; opacity:0.3; margin-bottom:12px;"></i><p>這裡目前還是空的。<br>有煩惱時，歡迎放進信箱裡。</p></div>';
+    return;
+  }
+  
+  let html = '';
+  mailboxDb.forEach(record => {
+    const dateStr = new Date(record.timestamp).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    let bibleHtml = '';
+    if (record.bibleVerses && record.bibleVerses.length > 0) {
+      const versesInner = record.bibleVerses.map(v => '<div class="bible-verse-item"><p class="bible-verse-text">' + v.text + '</p><span class="bible-verse-ref">── ' + v.ref + '</span></div>').join('');
+      bibleHtml = '<div class="bible-section"><div class="bible-section-title">📖 來自聖經的回應</div>' + versesInner + '</div>';
+    }
+    
+    html += `<div class="mailbox-history-item" onclick="this.classList.toggle('expanded')">
+        <div class="mhistory-header">
+          <div class="mhistory-date">${dateStr}</div>
+          <div class="mhistory-preview">${record.userWorry.substring(0, 30)}${record.userWorry.length > 30 ? '...' : ''}</div>
+          <i class="ph-bold ph-caret-down mhistory-expand-icon"></i>
+        </div>
+        <div class="mhistory-content">
+          <div style="background:var(--bg-primary);padding:24px;border-radius:24px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.05);position:relative;margin-bottom:16px;">
+            <p style="color:var(--text-secondary);font-size:0.98rem;line-height:1.6;margin-bottom:24px;">${record.aiMessage}</p>
+            ${record.quoteHtml || ''}
+          </div>
+          ${bibleHtml}
+        </div>
+      </div>`;
+  });
+  
+  container.innerHTML = html;
+}
+
+// --- Image Export ---
+async function exportAsImage(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  
+  const originalBackground = el.style.background;
+  el.style.background = 'var(--bg-secondary)'; // Ensure valid background
+  
+  try {
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#fdfaf6' });
+    const image = canvas.toDataURL("image/png");
+    
+    const a = document.createElement('a');
+    a.href = image;
+    a.download = 'heart-whisper-' + Date.now() + '.png';
+    a.click();
+    showToast('📷 圖卡已儲存成功！');
+  } catch (err) {
+    console.error(err);
+    showToast('儲存圖卡時發生錯誤');
+  } finally {
+    el.style.background = originalBackground;
   }
 }

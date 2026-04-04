@@ -63,8 +63,8 @@
           </div>
         </div>
 
-        <!-- Section 1: 每日修行 -->
-        <div class="dashboard-section-title"><i class="ph-fill ph-plant"></i> 每日修行</div>
+        <!-- Section 1: 想法磨練 -->
+        <div class="dashboard-section-title"><i class="ph-fill ph-plant"></i> 想法磨練</div>
         
         <div class="card review-card" onclick="startDailyReview()">
           <div class="card-icon"><i class="ph-fill ph-brain"></i></div>
@@ -324,7 +324,8 @@
         </div>
         <h2 class="view-title">我的情緒工具箱</h2>
         
-        <div class="library-filter-wrapper" style="margin-bottom: 16px;">
+        <div class="library-filter-wrapper" style="margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px;">
+          <input type="text" id="library-search" class="modern-input" placeholder="🔍 搜尋金句或標籤..." onkeyup="renderLibrary(document.getElementById('library-category-select').value)">
           <select id="library-category-select" class="form-input" style="width: 100%; font-weight: 700; color: var(--text-dark); background-color: var(--croc-foam); border: 1.5px solid var(--croc-mist);" onchange="renderLibrary(this.value)">
             <option value="全部">📂 全部金句</option>
             <option value="安慰共感">🫂 安慰共感</option>
@@ -386,34 +387,57 @@
           <button class="icon-btn" onclick="switchView('view-home')"><i class="ph-bold ph-x"></i></button>
         </div>
         
-        <!-- Phase 1: Input -->
-        <div id="mailbox-phase-input" class="mailbox-phase active">
-          <p style="color: var(--text-primary); margin-bottom: 16px; line-height: 1.6;">遇到了什麼煩心事呢？寫下它，我們從你的收藏中找一句話送你...</p>
-          <div style="position:relative;">
-            <textarea id="mailbox-textarea" class="mailbox-textarea" placeholder="例如：最近因為一件小錯一直苛責自己..."></textarea>
-            <button class="mic-btn" id="mic-btn-mailbox" onclick="startVoiceInput('mailbox-textarea', 'mic-btn-mailbox')" title="語音輸入">
-              <i class="ph-fill ph-microphone"></i>
+        <div class="metaphor-tabs" style="margin-bottom: 16px;">
+          <button class="metaphor-tab active" id="mtab-mailbox-new" onclick="switchMailboxTab('new')">
+            <i class="ph-fill ph-envelope-simple-open"></i> 解憂信箱
+          </button>
+          <button class="metaphor-tab" id="mtab-mailbox-history" onclick="switchMailboxTab('history')">
+            <i class="ph-fill ph-clock-counter-clockwise"></i> 時光信件
+          </button>
+        </div>
+
+        <div id="mailbox-view-new">
+          <!-- Phase 1: Input -->
+          <div id="mailbox-phase-input" class="mailbox-phase active">
+            <p style="color: var(--text-primary); margin-bottom: 16px; line-height: 1.6;">遇到了什麼煩心事呢？寫下它，我們從你的收藏中找一句話送你...</p>
+            <div style="position:relative;">
+              <textarea id="mailbox-textarea" class="mailbox-textarea" placeholder="例如：最近因為一件小錯一直苛責自己..."></textarea>
+              <button class="mic-btn" id="mic-btn-mailbox" onclick="startVoiceInput('mailbox-textarea', 'mic-btn-mailbox')" title="語音輸入">
+                <i class="ph-fill ph-microphone"></i>
+              </button>
+            </div>
+            <button class="primary-btn" onclick="submitMailbox()" style="width:100%; margin-top: 16px;">
+              <i class="ph-fill ph-paper-plane-tilt"></i> 寄出專屬信件
             </button>
           </div>
-          <button class="primary-btn" onclick="submitMailbox()" style="width:100%; margin-top: 16px;">
-            <i class="ph-fill ph-paper-plane-tilt"></i> 寄出專屬信件
-          </button>
+          
+          <!-- Phase 2: Loading State -->
+          <div id="mailbox-phase-loading" class="mailbox-phase">
+            <div class="glow-orb" id="mailbox-glow-orb"></div>
+            <p style="margin-top:32px; color:var(--text-secondary); font-size:0.95rem;">正在傾聽你的煩惱...<br>呼叫專屬陪談師</p>
+          </div>
+          
+          <!-- Phase 3: Result -->
+          <div id="mailbox-phase-result" class="mailbox-phase">
+            <div class="mailbox-result-card" id="mailbox-result-card" style="margin-bottom: 16px;">
+              <!-- Rendered via JS -->
+            </div>
+            <div style="display:flex; gap:12px;">
+              <button class="primary-btn" onclick="exportAsImage('mailbox-result-card')" style="flex:1; background:var(--bg-secondary); color:var(--text-primary); border:1px solid rgba(0,0,0,0.1);">
+                <i class="ph-fill ph-camera"></i> 存成圖卡
+              </button>
+              <button class="secondary-btn" onclick="resetMailbox()" style="flex:1;">
+                <i class="ph-bold ph-arrow-counter-clockwise"></i> 再寫一封
+              </button>
+            </div>
+          </div>
         </div>
-        
-        <!-- Phase 2: Loading State -->
-        <div id="mailbox-phase-loading" class="mailbox-phase">
-          <div class="glow-orb" id="mailbox-glow-orb"></div>
-          <p style="margin-top:32px; color:var(--text-secondary); font-size:0.95rem;">正在輕輕翻閱你的金句...<br>尋找最適合的答案</p>
-        </div>
-        
-        <!-- Phase 3: Result -->
-        <div id="mailbox-phase-result" class="mailbox-phase">
-          <div class="mailbox-result-card" id="mailbox-result-card">
+
+        <div id="mailbox-view-history" style="display:none;">
+          <p class="view-subtitle" style="margin-bottom: 16px;">這裡收納著你過往每一次的傾訴，以及那些接住你的溫柔話語與經文。</p>
+          <div id="mailbox-history-container" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
             <!-- Rendered via JS -->
           </div>
-          <button class="secondary-btn" onclick="resetMailbox()" style="width:100%; margin-top: 16px;">
-            <i class="ph-bold ph-arrow-counter-clockwise"></i> 再寫一封
-          </button>
         </div>
       </section>
 
@@ -547,13 +571,6 @@
             </div>
           </div>
 
-          <div class="form-group" style="margin-top: 24px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 16px;">
-            <label>舊資料 AI 智能升級 <i class="ph-bold ph-sparkle"></i></label>
-            <p class="help-text">尋找缺乏「能量分類與顏色」的舊金句，呼叫 AI 幫忙補上最新的色彩與標籤。執行時請稍候片刻喔！</p>
-            <button class="primary-btn" id="btn-batch-upgrade" style="width:100%; justify-content:center; margin-top:12px;" onclick="batchUpgradeOldQuotes()">
-              <i class="ph-fill ph-rocket-launch"></i> 開始自動升級
-            </button>
-          </div>
           
           <div class="sys-prompt-preview" style="margin-top: 24px;">
             <small>AI 教練系統設定：<br>專精認知心理學、ADHD 友善與克服完美主義。</small>

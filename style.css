@@ -2061,3 +2061,169 @@ body {
     border-color: rgba(255,255,255,0.05);
   }
 }
+
+/* --- Bible Verses Section --- */
+.bible-section {
+  margin-top: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(184,179,201,0.08), rgba(212,189,165,0.06));
+  border-radius: 20px;
+  border: 1px solid rgba(0,0,0,0.04);
+  text-align: left;
+}
+.bible-section-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  text-align: center;
+  letter-spacing: 1px;
+}
+.bible-verse-item {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+.bible-verse-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.bible-verse-text {
+  font-family: 'Noto Serif TC', serif;
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+  margin: 0;
+}
+.bible-verse-ref {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+/* --- Category Edit Panel --- */
+.edit-panel {
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--bg-primary);
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 14px;
+  animation: fadeInUp 0.3s ease-out;
+}
+.edit-panel-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.edit-panel select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  margin-bottom: 10px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.edit-emotion-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.edit-emotion-chip {
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(0,0,0,0.06);
+  background: var(--bg-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--text-primary);
+}
+.edit-emotion-chip:hover,
+.edit-emotion-chip.selected {
+  background: var(--accent-calm);
+  color: #fff;
+  border-color: var(--accent-calm);
+}
+.edit-trigger-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  animation: fadeInUp 0.25s ease-out;
+}
+.edit-trigger-chip {
+  padding: 5px 10px;
+  border-radius: 16px;
+  border: 1px dashed rgba(0,0,0,0.1);
+  background: transparent;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--text-primary);
+}
+.edit-trigger-chip:hover,
+.edit-trigger-chip.selected {
+  background: var(--accent-warm);
+  color: #fff;
+  border-color: var(--accent-warm);
+  border-style: solid;
+}
+.edit-panel-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.edit-panel-actions button {
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+.edit-save-btn {
+  background: var(--accent-calm);
+  color: #fff;
+}
+.edit-cancel-btn {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.btn-edit-category {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+.btn-edit-category:hover {
+  opacity: 1;
+  background: rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  .bible-section {
+    background: linear-gradient(135deg, rgba(100,96,120,0.1), rgba(150,130,100,0.06));
+    border-color: rgba(255,255,255,0.04);
+  }
+  .edit-panel {
+    background: var(--bg-secondary);
+    border-color: rgba(255,255,255,0.05);
+  }
+  .edit-panel select {
+    background: var(--bg-primary);
+    border-color: rgba(255,255,255,0.05);
+  }
+}
