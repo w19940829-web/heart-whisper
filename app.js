@@ -1147,21 +1147,84 @@ function playGachaTTS() {
 async function shareGachaCard() {
   if (!currentGachaQuote) return;
   
-  const card = document.getElementById('gacha-card');
-  if (!card) return;
+  showToast('正在為您生成精美海報... 📸');
   
-  showToast('正在生成分享圖片... 📸');
+  // 1. Create a hidden aesthetic poster container
+  const poster = document.createElement('div');
+  Object.assign(poster.style, {
+    position: 'absolute',
+    top: '-9999px',
+    left: '-9999px',
+    width: '1080px',
+    height: '1080px',
+    background: 'linear-gradient(135deg, #fdfbf7 0%, #ebecde 100%)',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: '120px',
+    boxSizing: 'border-box',
+    fontFamily: '"Noto Serif TC", "Inter", serif',
+    color: '#4a453f',
+    textAlign: 'center',
+    borderRadius: '40px',
+    overflow: 'hidden'
+  });
+  
+  poster.innerHTML = `
+    <!-- Giant Quote Mark -->
+    <div style="
+      position: absolute;
+      top: 100px;
+      left: 120px;
+      font-size: 500px;
+      line-height: 1;
+      color: rgba(142, 164, 155, 0.08);
+      font-family: 'Times New Roman', serif;
+      pointer-events: none;
+    ">“</div>
+    
+    <!-- The Quote Text -->
+    <div style="
+      font-size: 56px;
+      line-height: 1.6;
+      letter-spacing: 2px;
+      font-weight: 500;
+      z-index: 2;
+      word-break: break-all;
+      word-wrap: break-word;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    ">${currentGachaQuote.original}</div>
+    
+    <!-- Footer Logo & Branding -->
+    <div style="
+      position: absolute;
+      bottom: 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      opacity: 0.6;
+    ">
+      <span style="font-size: 40px; margin-bottom: 16px;">🪶</span>
+      <span style="font-size: 24px; letter-spacing: 4px; font-weight: 400; font-family: 'Inter', sans-serif;">心語漫遊</span>
+    </div>
+  `;
+  
+  document.body.appendChild(poster);
   
   try {
-    const canvas = await html2canvas(card, {
-      backgroundColor: '#fdfbf7',
+    // 2. Take screenshot of the poster
+    const canvas = await html2canvas(poster, {
+      backgroundColor: null,
       scale: 2,
       useCORS: true,
       logging: false,
-      borderRadius: 20,
     });
     
-    // Create share overlay
+    // Clean up the DOM
+    document.body.removeChild(poster);
+    
+    // 3. Create share overlay to preview the result
     const overlay = document.createElement('div');
     overlay.className = 'gacha-share-overlay';
     overlay.id = 'gacha-share-overlay';
@@ -1170,17 +1233,21 @@ async function shareGachaCard() {
     const preview = document.createElement('div');
     preview.className = 'gacha-share-preview';
     preview.innerHTML = `
-      <h3>📸 分享這張陪伴卡</h3>
-      <div class="gacha-share-canvas-wrap"></div>
-      <div class="gacha-share-actions">
-        <button style="background:var(--bg-secondary); color:var(--text-primary);" onclick="document.getElementById('gacha-share-overlay').remove()">取消</button>
-        <button style="background:var(--accent-calm); color:#fff;" id="gacha-download-btn">💾 儲存圖片</button>
+      <h3 style="font-size: 1.2rem; color: var(--text-dark); margin-bottom: 16px; text-align: center;">📸 專屬你的陪伴卡海報</h3>
+      <div class="gacha-share-canvas-wrap" style="text-align: center; margin-bottom: 24px;"></div>
+      <div class="gacha-share-actions" style="display: flex; gap: 12px; justify-content: center;">
+        <button style="flex: 1; padding: 12px; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; background: var(--bg-secondary); color: var(--text-primary);" onclick="document.getElementById('gacha-share-overlay').remove()">取消</button>
+        <button style="flex: 1; padding: 12px; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; background: var(--accent-calm); color: #fff;" id="gacha-download-btn">💾 儲存</button>
       </div>
     `;
     
     const canvasWrap = preview.querySelector('.gacha-share-canvas-wrap');
     const img = new Image();
     img.src = canvas.toDataURL('image/png');
+    // Ensure the preview image scales down nicely in the UI
+    img.style.maxWidth = '100%';
+    img.style.border = '1px solid rgba(0,0,0,0.05)';
+    img.style.borderRadius = '16px';
     canvasWrap.appendChild(img);
     
     overlay.appendChild(preview);
@@ -1190,9 +1257,9 @@ async function shareGachaCard() {
     document.getElementById('gacha-download-btn').onclick = () => {
       const link = document.createElement('a');
       link.download = `陪伴卡_${new Date().toLocaleDateString('zh-TW')}.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.href = img.src;
       link.click();
-      showToast('圖片已儲存 ✨');
+      showToast('海報儲存成功 ✨');
       overlay.remove();
     };
     
@@ -1200,12 +1267,12 @@ async function shareGachaCard() {
     if (navigator.share && navigator.canShare) {
       canvas.toBlob(async (blob) => {
         const shareBtn = document.createElement('button');
-        shareBtn.style.cssText = 'background:linear-gradient(135deg, var(--accent-warm), #c49c76); color:#fff;';
+        shareBtn.style.cssText = 'flex: 1; padding: 12px; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; background:linear-gradient(135deg, var(--accent-warm), #c49c76); color:#fff;';
         shareBtn.textContent = '📤 分享';
         shareBtn.onclick = async () => {
           try {
             const file = new File([blob], '陪伴卡.png', { type: 'image/png' });
-            await navigator.share({ files: [file], title: '心語漫遊 · 陪伴卡' });
+            await navigator.share({ files: [file], title: '心語漫遊 · 陪伴卡海報' });
             overlay.remove();
           } catch (err) {
             // User cancelled share
@@ -1216,8 +1283,9 @@ async function shareGachaCard() {
     }
     
   } catch (err) {
+    if(poster.parentNode) document.body.removeChild(poster);
     console.error('Share failed:', err);
-    showToast('截圖失敗，請再試一次');
+    showToast('海報生成失敗，請再試一次');
   }
 }
 
