@@ -1,4 +1,13 @@
-const AI_SYSTEM_PROMPT = `
+function getAISystemPrompt() {
+  const prefs = JSON.parse(localStorage.getItem('hw_preferences')) || { categories: [], emotions: [] };
+  
+  // Build category list
+  const catList = Object.values(prefs.categories || {}).map(c => `- ${c.id} (${c.name})`).join('\n');
+  
+  // Build emotion list
+  const emoList = Object.values(prefs.emotions || {}).map(e => `${e.id} (${e.name})：${e.triggers.join('、')}`).join('\n');
+
+  return `
 ## 角色設定
 你是一位專精於「認知心理學」、「ADHD 注意力管理」與「克服完美主義」的 **AI 金句記憶教練**。你的目標是協助用戶內化喜歡的金句，透過「主動提取 (Active Recall)」、「間隔重複 (Spaced Repetition)」與「情緒連結」對抗遺忘，並將金句轉化為情緒調節的工具。
 
@@ -19,33 +28,19 @@ const AI_SYSTEM_PROMPT = `
     * **Standard (標準)：** 挖掉 2-3 個詞，每次隨機生成不同位置。
 4. **精準情緒定位：** 依照以下標準詞庫，為金句配對情緒錨點。
 
-## 功能分類（6 類，必須從中選一）
+## 功能分類清單（請從中挑選最適合的系統 ID 回傳）
 每個分類代表這句金句能為用戶「做什麼」：
-- 🫂 安慰共感 — 讓人感到「被看見、被理解」（EFT 情緒聚焦治療）
-- 🔄 轉念重塑 — 幫助「換角度思考」（CBT 認知行為治療）
-- 💪 推動行動 — 激勵「起身去做」（行為激活理論）
-- 🤗 自我疼惜 — 提醒「對自己好一點」（Kristin Neff 自我慈悲）
-- 🙏 信仰連結 — 連結「神/信仰的力量」（意義治療）
-- 🌱 成長提醒 — 看見「痛苦中的成長」（成長心態 + 創傷後成長）
+${catList}
 
-## 情緒錨點標準詞庫（二階結構，必須從中選擇）
-第一階為「核心情緒」（8 個），第二階為「觸發場景」（每個下 4 個）：
-
-焦慮：趕死線時、社交場合前、對未來不安、完美主義發作
-憤怒：被否定時、對自己生氣、人際摩擦、感到不公平
-悲傷：失去重要的事物、被拒絕後、感到失望、想起過去
-恐懼：害怕失敗、害怕被評價、面對未知、承擔責任時
-疲憊：身心俱疲、燃盡感、找不到動力、睡不好的日子
-孤獨：覺得沒人懂、被忽略時、想念某人、深夜獨處
-自卑：比較心態、覺得不夠好、冒名頂替感、被批評後
-迷茫：不知道方向、選擇困難、意義感消失、信心動搖
+## 情緒錨點標準詞庫（二階結構，請從中選擇最適合的觸發情境與系統 ID）
+${emoList}
 
 ## 輸出規範 (嚴格 JSON 格式返回)
 為了方便 App 開發對接，請嚴格且僅回覆以下 JSON 格式。請勿包含 markdown codeblock (如 \`\`\`json )，直接回傳 JSON string 即可：
 {
   "status": "new_quote_added",
   "original_quote": "完整金句內容",
-  "category": "從上述6類中選一，格式為「emoji 名稱」，例如「🫂 安慰共感」",
+  "category": "從上述分類選項中選一，回填相對應的系統 ID，例如 cat_faith",
   "energy_level": "從[low, medium, high]選一 (low=溫和共情, medium=引導反思, high=激勵突破)",
   "focus_mode": {
     "chunked_quote": ["短句 1", "短句 2"],
@@ -57,9 +52,9 @@ const AI_SYSTEM_PROMPT = `
   },
   "emotional_anchors": {
     "primary": "從標準詞庫的「觸發場景」中選出最精準的 1 個（例如：完美主義發作）",
-    "primary_emotion": "該觸發場景所屬的核心情緒（例如：焦慮）",
+    "primary_emotion": "該觸發場景所屬的核心情緒系統 ID（例如：emo_anxiety）",
     "secondary": "從標準詞庫中選出次精準的 1 個觸發場景",
-    "secondary_emotion": "該觸發場景所屬的核心情緒",
+    "secondary_emotion": "該觸發場景所屬的核心情緒系統 ID",
     "trigger_scene": "用 15 字以內描述此金句最適合的具體生活場景"
   },
   "reflection_anchor": {
@@ -69,6 +64,7 @@ const AI_SYSTEM_PROMPT = `
   }
 }
 `;
+}
 
 const MAILBOX_SYSTEM_PROMPT = `
 ## 角色設定
@@ -140,7 +136,7 @@ class AIService {
         {
           role: "user",
           parts: [
-            { text: AI_SYSTEM_PROMPT + `\n\n請根據上方指令與下方用戶提供的新金句，進行第一階段分析（Input & Anchor），並回傳規定的 JSON 格式：\n\n「${quote}」` }
+            { text: getAISystemPrompt() + `\n\n請根據上方指令與下方用戶提供的新金句，進行第一階段分析（Input & Anchor），並回傳規定的 JSON 格式：\n\n「${quote}」` }
           ]
         }
       ],
@@ -299,8 +295,14 @@ class AIService {
       throw new Error("API_KEY_MISSING");
     }
 
+    // Read preferences to resolve categories
+    const prefs = JSON.parse(localStorage.getItem('hw_preferences')) || { categories: {} };
     // Only map necessary ID and original text to save token context
-    const dbPayload = quotesDb.map(q => ({ id: q.id, original: q.original, category: q.category }));
+    const dbPayload = quotesDb.map(q => ({ 
+      id: q.id, 
+      original: q.original, 
+      category: prefs.categories[q.category] ? prefs.categories[q.category].name : q.category 
+    }));
 
     const payload = {
       contents: [

@@ -5,31 +5,101 @@ let currentProcessingQuote = null;
 let currentReviewSession = [];
 let reviewIndex = 0;
 
-/* --- Standardized Emotion Vocabulary (Two-Tier) --- */
-const EMOTION_VOCAB = {
-  '焦慮': { emoji: '😰', triggers: ['趕死線時', '社交場合前', '對未來不安', '完美主義發作'] },
-  '憤怒': { emoji: '😤', triggers: ['被否定時', '對自己生氣', '人際摩擦', '感到不公平'] },
-  '悲傷': { emoji: '😢', triggers: ['失去重要的事物', '被拒絕後', '感到失望', '想起過去'] },
-  '恐懼': { emoji: '😨', triggers: ['害怕失敗', '害怕被評價', '面對未知', '承擔責任時'] },
-  '疲憊': { emoji: '😮‍💨', triggers: ['身心俱疲', '燃盡感', '找不到動力', '睡不好的日子'] },
-  '孤獨': { emoji: '🌙', triggers: ['覺得沒人懂', '被忽略時', '想念某人', '深夜獨處'] },
-  '自卑': { emoji: '😞', triggers: ['比較心態', '覺得不夠好', '冒名頂替感', '被批評後'] },
-  '迷茫': { emoji: '🌫️', triggers: ['不知道方向', '選擇困難', '意義感消失', '信心動搖'] },
+/* --- Standardized Emotion Vocabulary (Two-Tier) & Categories --- */
+const DEFAULT_PREFS = {
+  categories: {
+    'cat_faith': { name: '🙏 信仰連結', color: '#b8b3c9', class: 'cat-faith' },
+    'cat_empathy': { name: '🫂 安慰共感', color: '#a3b1a6', class: 'cat-empathy' },
+    'cat_reframe': { name: '🔄 轉念重塑', color: '#8ea4bf', class: 'cat-reframe' },
+    'cat_action': { name: '💪 推動行動', color: '#d4a574', class: 'cat-action' },
+    'cat_compassion': { name: '🤗 自我疼惜', color: '#c4a3b1', class: 'cat-compassion' },
+    'cat_growth': { name: '🌱 成長提醒', color: '#9db89d', class: 'cat-growth' },
+  },
+  emotions: {
+    'emo_anxiety': { name: '焦慮', emoji: '😰', triggers: ['趕死線時', '社交場合前', '對未來不安', '完美主義發作'] },
+    'emo_anger': { name: '憤怒', emoji: '😤', triggers: ['被否定時', '對自己生氣', '人際摩擦', '感到不公平'] },
+    'emo_sadness': { name: '悲傷', emoji: '😢', triggers: ['失去重要的事物', '被拒絕後', '感到失望', '想起過去'] },
+    'emo_fear': { name: '恐懼', emoji: '😨', triggers: ['害怕失敗', '害怕被評價', '面對未知', '承擔責任時'] },
+    'emo_fatigue': { name: '疲憊', emoji: '😮‍💨', triggers: ['身心俱疲', '燃盡感', '找不到動力', '睡不好的日子'] },
+    'emo_loneliness': { name: '孤獨', emoji: '🌙', triggers: ['覺得沒人懂', '被忽略時', '想念某人', '深夜獨處'] },
+    'emo_inferiority': { name: '自卑', emoji: '😞', triggers: ['比較心態', '覺得不夠好', '冒名頂替感', '被批評後'] },
+    'emo_confusion': { name: '迷茫', emoji: '🌫️', triggers: ['不知道方向', '選擇困難', '意義感消失', '信心動搖'] }
+  }
 };
 
-const CATEGORY_MAP = {
-  '🫂 安慰共感': { color: '#a3b1a6', class: 'cat-empathy' },
-  '🔄 轉念重塑': { color: '#8ea4bf', class: 'cat-reframe' },
-  '💪 推動行動': { color: '#d4a574', class: 'cat-action' },
-  '🤗 自我疼惜': { color: '#c4a3b1', class: 'cat-compassion' },
-  '🙏 信仰連結': { color: '#b8b3c9', class: 'cat-faith' },
-  '🌱 成長提醒': { color: '#9db89d', class: 'cat-growth' },
+let hwPreferences = JSON.parse(localStorage.getItem('hw_preferences'));
+if (!hwPreferences || !localStorage.getItem('hw_v3_migrated')) {
+  hwPreferences = DEFAULT_PREFS;
+  localStorage.setItem('hw_preferences', JSON.stringify(hwPreferences));
+  localStorage.setItem('hw_v3_migrated', 'true');
+}
+
+let EMOTION_VOCAB = hwPreferences.emotions;
+let CATEGORY_MAP = hwPreferences.categories;
+
+// --- V3 UUID Migration Map (Revert to V1) ---
+const V3_CATEGORY_MAP = {
+  'cat_grounding': 'cat_faith',
+  'cat_self_compassion': 'cat_empathy',
+  'cat_anti_splitting': 'cat_reframe',
+  'cat_micro_action': 'cat_action',
+  'cat_anti_catastrophize': 'cat_growth'
 };
+
+const V3_EMOTION_MAP = {
+  'emo_overdrive': 'emo_anxiety',
+  'emo_dysregulation': 'emo_anger',
+  'emo_burnout': 'emo_sadness',
+  'emo_rsd': 'emo_fear',
+  'emo_paralysis': 'emo_fatigue',
+  'emo_fog': 'emo_confusion'
+};
+
+// --- DB Migration ---
+if (quotesDb && quotesDb.length > 0) {
+  let dbChanged = false;
+  quotesDb.forEach(q => {
+    // V2 to V1(V3) UUID migration
+    if (q.category && V3_CATEGORY_MAP[q.category]) {
+      q.category = V3_CATEGORY_MAP[q.category];
+      dbChanged = true;
+    }
+    
+    if (q.emotional_anchors && q.emotional_anchors.primary_emotion && V3_EMOTION_MAP[q.emotional_anchors.primary_emotion]) {
+      q.emotional_anchors.primary_emotion = V3_EMOTION_MAP[q.emotional_anchors.primary_emotion];
+      dbChanged = true;
+    }
+
+    // Migrate Category legacy strings
+    if (q.category && !q.category.startsWith('cat_') && q.category !== '無分類' && q.category !== '未分類' && q.category !== 'cat_uncategorized') {
+      const matchKey = Object.keys(CATEGORY_MAP).find(k => CATEGORY_MAP[k].name === q.category || CATEGORY_MAP[k].name.includes(q.category));
+      if (matchKey) {
+        q.category = matchKey;
+      } else {
+        q.category = 'cat_uncategorized';
+      }
+      dbChanged = true;
+    }
+    
+    // Migrate Emotion Anchor (only if primary_emotion is a string name instead of emo_uuid)
+    if (q.emotional_anchors && q.emotional_anchors.primary_emotion && !q.emotional_anchors.primary_emotion.startsWith('emo_')) {
+      const eName = q.emotional_anchors.primary_emotion;
+      const matchKey = Object.keys(EMOTION_VOCAB).find(k => EMOTION_VOCAB[k].name === eName || EMOTION_VOCAB[k].name.includes(eName));
+      if (matchKey) {
+        q.emotional_anchors.primary_emotion = matchKey;
+        dbChanged = true;
+      }
+    }
+  });
+  if (dbChanged) {
+    localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
+  }
+}
 
 // Helper: find emotion for a trigger
 function findEmotionForTrigger(trigger) {
-  for (const [emotion, data] of Object.entries(EMOTION_VOCAB)) {
-    if (data.triggers.includes(trigger)) return emotion;
+  for (const [emotionUuid, data] of Object.entries(EMOTION_VOCAB)) {
+    if (data.triggers.includes(trigger)) return emotionUuid;
   }
   return null;
 }
@@ -48,13 +118,13 @@ function getQuoteEmotion(q) {
   }
   // Fallback: guess from old user_anchor
   const anchor = q.user_anchor || '';
-  for (const [emotion, data] of Object.entries(EMOTION_VOCAB)) {
-    if (anchor.includes(emotion)) return emotion;
+  for (const [emotionUuid, data] of Object.entries(EMOTION_VOCAB)) {
+    if (anchor.includes(data.name)) return emotionUuid;
     for (const t of data.triggers) {
-      if (anchor.includes(t)) return emotion;
+      if (anchor.includes(t)) return emotionUuid;
     }
   }
-  return '迷茫'; // default fallback
+  return 'emo_confusion'; // default fallback
 }
 
 /* --- UI Logic & Routing --- */
@@ -141,7 +211,12 @@ function exportData() {
     return;
   }
   
-  const data = { quotes: quotesDb, streak: localStorage.getItem('hw_streak') || 0, mailbox: mailboxDb };
+  const data = { 
+    quotes: quotesDb, 
+    streak: localStorage.getItem('hw_streak') || 0, 
+    mailbox: mailboxDb,
+    preferences: hwPreferences
+  };
   const dataStr = JSON.stringify(data, null, 2);
   const blob = new Blob([dataStr], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -177,6 +252,12 @@ function importData(event) {
         quotesDb = importedData.quotes;
         if(importedData.streak) localStorage.setItem('hw_streak', importedData.streak);
         if(importedData.mailbox) mailboxDb = importedData.mailbox;
+        if(importedData.preferences) {
+          hwPreferences = importedData.preferences;
+          localStorage.setItem('hw_preferences', JSON.stringify(hwPreferences));
+          EMOTION_VOCAB = hwPreferences.emotions;
+          CATEGORY_MAP = hwPreferences.categories;
+        }
       } else {
         throw new Error('不支援的檔案格式，請確認是否為心語漫遊備份檔。');
       }
@@ -337,7 +418,7 @@ function renderEmotionVocabGrid() {
     
     const header = document.createElement('div');
     header.className = 'emotion-group-header';
-    header.innerHTML = `${data.emoji} ${emotion}`;
+    header.innerHTML = `${data.emoji} ${data.name || emotion}`;
     group.appendChild(header);
     
     const chips = document.createElement('div');
@@ -741,6 +822,7 @@ function nextChunk() {
 // Init
 document.addEventListener('DOMContentLoaded', () => {
   updateDashboard();
+  updateLibraryFilters();
   // Attempt to load voices early
   if (window.speechSynthesis) {
     window.speechSynthesis.getVoices();
@@ -796,6 +878,8 @@ function renderLibrary(activeCategory) {
     
   filteredQuotes.forEach(q => {
     const cat = q.category || '無分類';
+    const catDisplayData = CATEGORY_MAP[cat];
+    const catDisplayName = catDisplayData ? catDisplayData.name : cat;
     const energy = q.energy_level || 'low';
     let emoji = '💡';
     if (q.reflection_anchor && q.reflection_anchor.action_emoji) {
@@ -809,8 +893,8 @@ function renderLibrary(activeCategory) {
 
     // New 6-category + old 4-category fallback
     let catClass = '';
-    if (CATEGORY_MAP[cat]) {
-      catClass = CATEGORY_MAP[cat].class;
+    if (catDisplayData) {
+      catClass = catDisplayData.class;
     } else if (cat.includes('安慰') || cat.includes('共感')) catClass = 'cat-empathy';
     else if (cat.includes('轉念') || cat.includes('重塑')) catClass = 'cat-reframe';
     else if (cat.includes('推動') || cat.includes('激勵') || cat.includes('行動')) catClass = 'cat-action';
@@ -831,7 +915,7 @@ function renderLibrary(activeCategory) {
       <div class="lib-card-header">
         <div class="lib-card-badges">
           <span class="lib-badge energy-badge" title="${energyText}">${energySymbol}</span>
-          <span class="lib-badge cat-badge">${cat}</span>
+          <span class="lib-badge cat-badge">${catDisplayName}</span>
           <button class="btn-edit-category" onclick="openEditPanel('${q.id}', event)" title="重新分類">✏️</button>
         </div>
         <div class="lib-emoji">${emoji}</div>
@@ -1096,8 +1180,9 @@ function drawGacha(coreEmotion) {
   document.getElementById('gacha-result').classList.remove('reveal');
   
   const promptText = document.getElementById('gacha-prompt-text');
+  const dispName = coreEmotion ? (EMOTION_VOCAB[coreEmotion]?.name || coreEmotion) : '';
   promptText.textContent = coreEmotion 
-    ? `正在為感到「${coreEmotion}」的你尋找力量...` 
+    ? `正在為感到「${dispName}」的你尋找力量...` 
     : '命運正在為你挑選那一句話...';
   
   // Show glow animation
@@ -1123,7 +1208,7 @@ function drawGacha(coreEmotion) {
   setTimeout(() => {
     glowOrb.classList.add('burst');
     promptText.textContent = coreEmotion 
-      ? `🪐 送給正感到「${coreEmotion}」的你` 
+      ? `🪐 送給正感到「${dispName}」的你` 
       : '🪐 命運為你選了這句話';
     
     setTimeout(() => {
@@ -1144,7 +1229,7 @@ function revealGachaCard(quote) {
   card.className = 'gacha-card ' + getCatClass(cat);
   
   // Populate card content
-  document.getElementById('gacha-cat-badge').textContent = cat;
+  document.getElementById('gacha-cat-badge').textContent = CATEGORY_MAP[cat]?.name || cat;
   document.getElementById('gacha-emoji').textContent = emoji;
   document.getElementById('gacha-quote-display').textContent = quote.original;
   
@@ -1864,13 +1949,13 @@ function openEditPanel(quoteId, event) {
   // Build category options
   const catOptions = Object.keys(CATEGORY_MAP).map(c => {
     const selected = (q.category === c) ? 'selected' : '';
-    return '<option value="' + c + '" ' + selected + '>' + c + '</option>';
+    return '<option value="' + c + '" ' + selected + '>' + CATEGORY_MAP[c].name + '</option>';
   }).join('');
   
   // Build emotion chips
-  const emotionChips = Object.entries(EMOTION_VOCAB).map(([emotion, data]) => {
-    const sel = (emotion === editSelectedEmotion) ? 'selected' : '';
-    return '<button class="edit-emotion-chip ' + sel + '" onclick="selectEditEmotion(\'' + emotion + '\', \'' + quoteId + '\')">' + data.emoji + ' ' + emotion + '</button>';
+  const emotionChips = Object.entries(EMOTION_VOCAB).map(([emotionUuid, data]) => {
+    const sel = (emotionUuid === editSelectedEmotion) ? 'selected' : '';
+    return '<button class="edit-emotion-chip ' + sel + '" onclick="selectEditEmotion(\'' + emotionUuid + '\', \'' + quoteId + '\')">' + data.emoji + ' ' + data.name + '</button>';
   }).join('');
   
   // Build trigger chips for current emotion
@@ -1894,8 +1979,8 @@ function openEditPanel(quoteId, event) {
   card.appendChild(panel);
 }
 
-function buildTriggerChips(emotion, currentTrigger, quoteId) {
-  const triggers = EMOTION_VOCAB[emotion]?.triggers || [];
+function buildTriggerChips(emotionUuid, currentTrigger, quoteId) {
+  const triggers = EMOTION_VOCAB[emotionUuid]?.triggers || [];
   return triggers.map(t => {
     const sel = (t === currentTrigger) ? 'selected' : '';
     return '<button class="edit-trigger-chip ' + sel + '" onclick="selectEditTrigger(\'' + t + '\', \'' + quoteId + '\')">' + t + '</button>';
@@ -2033,5 +2118,181 @@ async function exportAsImage(elementId) {
     showToast('儲存圖卡時發生錯誤');
   } finally {
     el.style.background = originalBackground;
+  }
+}
+
+/* --- TAGS MANAGER --- */
+let currentManagerType = null; // 'category' | 'emotion'
+
+function openCategoryManager() {
+  currentManagerType = 'category';
+  document.getElementById('tags-modal-title').innerText = '功能分類管理 (上限 10)';
+  document.getElementById('tags-modal').classList.add('active');
+  renderTagsList();
+}
+
+function openEmotionManager() {
+  currentManagerType = 'emotion';
+  document.getElementById('tags-modal-title').innerText = '核心情緒管理 (上限 15)';
+  document.getElementById('tags-modal').classList.add('active');
+  renderTagsList();
+}
+
+function closeTagsManager() {
+  document.getElementById('tags-modal').classList.remove('active');
+  renderLibrary();
+  updateLibraryFilters();
+}
+
+function openFruitReference() {
+  document.getElementById('fruit-ref-modal').classList.add('active');
+}
+
+function closeFruitReference() {
+  document.getElementById('fruit-ref-modal').classList.remove('active');
+}
+
+function renderTagsList() {
+  const container = document.getElementById('tags-list-container');
+  container.innerHTML = '';
+  
+  if (currentManagerType === 'category') {
+    const cats = Object.entries(hwPreferences.categories);
+    cats.forEach(([id, item]) => {
+      container.appendChild(createTagElement(id, item.name, item.color));
+    });
+    document.getElementById('btn-add-new-tag').style.display = cats.length >= 10 ? 'none' : 'block';
+  } else {
+    const emos = Object.entries(hwPreferences.emotions);
+    emos.forEach(([id, item]) => {
+      container.appendChild(createTagElement(id, `${item.emoji} ${item.name}`, null, item.triggers.join('、')));
+    });
+    document.getElementById('btn-add-new-tag').style.display = emos.length >= 15 ? 'none' : 'block';
+  }
+}
+
+function createTagElement(id, title, colorInfo, subtitleInfo) {
+  const div = document.createElement('div');
+  div.style.padding = '12px';
+  div.style.background = 'var(--bg-secondary)';
+  div.style.borderRadius = '12px';
+  div.style.border = '1px solid rgba(0,0,0,0.05)';
+  div.style.display = 'flex';
+  div.style.justifyContent = 'space-between';
+  div.style.alignItems = 'center';
+
+  let leftHtml = `<div style="display:flex; flex-direction:column; gap:4px;">
+    <div style="font-weight:600; color:var(--text-primary); display:flex; gap:8px; align-items:center;">
+      ${colorInfo ? `<span style="width:12px;height:12px;border-radius:50%;background:${colorInfo};display:inline-block"></span>` : ''}
+      ${title}
+    </div>
+    ${subtitleInfo ? `<small style="color:var(--text-secondary);font-size:0.8rem;line-height:1.2;">觸發：${subtitleInfo}</small>` : ''}
+  </div>`;
+
+  div.innerHTML = leftHtml + `
+    <div style="display:flex; gap:8px;">
+      <button class="icon-btn" onclick="promptEditTag('${id}')" title="編輯"><i class="ph-bold ph-pencil-simple"></i></button>
+      <button class="icon-btn" onclick="deleteTag('${id}')" title="刪除"><i class="ph-bold ph-trash"></i></button>
+    </div>
+  `;
+  return div;
+}
+
+function addNewTag() {
+  if (currentManagerType === 'category') {
+    const name = prompt("請輸入新分類名稱 (建議包含 Emoji，例如：🌟 新分類)：");
+    if (!name || name.trim() === '') return;
+    const newId = 'cat_' + Date.now();
+    hwPreferences.categories[newId] = {
+      id: newId,
+      name: name.trim(),
+      color: '#d1d8e0',
+      class: 'cat-reframe'
+    };
+  } else {
+    const name = prompt("請輸入新情緒名稱：");
+    if (!name || name.trim() === '') return;
+    const emoji = prompt("請輸入代表此情緒的 Emoji：", "💫") || "💫";
+    const triggersRaw = prompt("請輸入觸發場景（用逗號分隔）：");
+    const triggers = triggersRaw ? triggersRaw.split(/[,，、]/).map(t => t.trim()).filter(Boolean) : [];
+    
+    const newId = 'emo_' + Date.now();
+    hwPreferences.emotions[newId] = {
+      id: newId,
+      name: name.trim(),
+      emoji: emoji.trim(),
+      triggers: triggers
+    };
+  }
+  savePreferences();
+  renderTagsList();
+}
+
+function promptEditTag(id) {
+  if (currentManagerType === 'category') {
+    const cat = hwPreferences.categories[id];
+    const newName = prompt("修改分類名稱：", cat.name);
+    if (newName && newName.trim() !== '') {
+      cat.name = newName.trim();
+      savePreferences();
+      renderTagsList();
+    }
+  } else {
+    const emo = hwPreferences.emotions[id];
+    const newName = prompt("修改情緒名稱：", emo.name);
+    if (!newName) return;
+    const newEmoji = prompt("修改 Emoji：", emo.emoji) || emo.emoji;
+    const newTriggersRaw = prompt("修改觸發場景（逗號分隔）：", emo.triggers.join('，'));
+    const newTriggers = newTriggersRaw ? newTriggersRaw.split(/[,，、]/).map(t => t.trim()).filter(Boolean) : emo.triggers;
+    
+    emo.name = newName.trim();
+    emo.emoji = newEmoji.trim();
+    emo.triggers = newTriggers;
+    savePreferences();
+    renderTagsList();
+  }
+}
+
+function deleteTag(id) {
+  if (!confirm("確定要刪除嗎？刪除後，原本屬於此標籤的金句將歸為「未分類/迷茫」。")) return;
+  
+  if (currentManagerType === 'category') {
+    delete hwPreferences.categories[id];
+    quotesDb.forEach(q => { if(q.category === id) q.category = 'cat_uncategorized'; });
+  } else {
+    delete hwPreferences.emotions[id];
+    quotesDb.forEach(q => {
+      if(q.emotional_anchors && q.emotional_anchors.primary_emotion === id) {
+        q.emotional_anchors.primary_emotion = 'emo_confusion'; 
+      }
+    });
+  }
+  
+  localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
+  savePreferences();
+  renderTagsList();
+}
+
+function savePreferences() {
+  localStorage.setItem('hw_preferences', JSON.stringify(hwPreferences));
+  EMOTION_VOCAB = hwPreferences.emotions;
+  CATEGORY_MAP = hwPreferences.categories;
+  showToast("標籤設定已儲存 ✅");
+}
+
+function updateLibraryFilters() {
+  const select = document.getElementById('library-category-select');
+  if(!select) return;
+  
+  const currentVal = select.value;
+  let optionsHtml = '<option value="全部">🌈 全部金句</option>';
+  Object.values(CATEGORY_MAP).forEach(c => {
+    optionsHtml += `<option value="${c.id}">${c.name}</option>`;
+  });
+  optionsHtml += '<option value="cat_uncategorized">📁 未分類</option>';
+  
+  select.innerHTML = optionsHtml;
+  if(select.querySelector(`option[value="${currentVal}"]`)) {
+    select.value = currentVal;
   }
 }

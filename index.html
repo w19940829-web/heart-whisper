@@ -571,12 +571,42 @@
             </div>
           </div>
 
-          
+          <!-- NEW: Labels Management (Categories & Emotions) -->
+          <div class="form-group" style="margin-top: 24px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 16px;">
+            <label>AI 標籤設定 (上限10/15) <i class="ph-bold ph-tag"></i></label>
+            <p class="help-text">自訂 AI 如何針對您的金句進行自動分類與情緒歸納。修改後立即生效。</p>
+            <div style="display:flex; gap:12px; margin-top:12px;">
+              <button class="primary-btn" style="flex:1; background:var(--croc-foam); border:1px solid var(--croc-mist); color:var(--text-dark);" onclick="openCategoryManager()"><i class="ph-bold ph-folders"></i> 管理分類</button>
+              <button class="primary-btn" style="flex:1; background:var(--croc-foam); border:1px solid var(--croc-mist); color:var(--text-dark);" onclick="openEmotionManager()"><i class="ph-bold ph-heartbeat"></i> 管理情緒</button>
+            </div>
+            <button class="primary-btn" style="width:100%; margin-top:12px; background:transparent; border:1px dashed rgba(0,0,0,0.2); color:var(--text-secondary);" onclick="openFruitReference()">💡 檢視：聖靈果子與情緒對照表 (觸發情境靈感)</button>
+          </div>
+
           <div class="sys-prompt-preview" style="margin-top: 24px;">
             <small>AI 教練系統設定：<br>專精認知心理學、ADHD 友善與克服完美主義。</small>
           </div>
 
-          <button class="primary-btn" onclick="saveSettings()">儲存設定</button>
+          <button class="primary-btn" onclick="saveSettings()">完成</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- ====================== -->
+    <!-- TAGS MANAGER MODAL     -->
+    <!-- ====================== -->
+    <div class="modal-overlay" id="tags-modal" style="z-index: 1100;">
+      <div class="modal-content" style="max-height: 80vh; display: flex; flex-direction: column;">
+        <div class="modal-header">
+          <h3 id="tags-modal-title">標籤管理</h3>
+          <button class="close-btn" onclick="closeTagsManager()"><i class="ph-bold ph-x"></i></button>
+        </div>
+        <div class="modal-body" style="overflow-y: auto; flex:1;">
+          <div id="tags-list-container" style="display:flex; flex-direction: column; gap:12px;">
+            <!-- dynamic content injected here -->
+          </div>
+          <button class="primary-btn" id="btn-add-new-tag" onclick="addNewTag()" style="margin-top: 16px; width: 100%; border: 1.5px dashed var(--croc-mist); background: transparent; color: var(--text-dark);">
+            <i class="ph-bold ph-plus"></i> 新增標籤
+          </button>
         </div>
       </div>
     </div>
@@ -615,6 +645,59 @@
           <i class="ph-fill ph-speaker-high"></i>
         </div>
         <button class="ambient-stop-btn" onclick="stopAmbient()"><i class="ph-bold ph-stop"></i> 停止播放</button>
+      </div>
+    </div>
+    
+    <!-- ====================== -->
+    <!-- FRUIT OF SPIRIT MODAL  -->
+    <!-- ====================== -->
+    <div class="modal-overlay" id="fruit-ref-modal" style="z-index: 1200;">
+      <div class="modal-content" style="max-height: 80vh; display: flex; flex-direction: column;">
+        <div class="modal-header">
+          <h3 style="font-size:1.1rem;">聖靈的果子 vs 狀態失控對照表</h3>
+          <button class="close-btn" onclick="closeFruitReference()"><i class="ph-bold ph-x"></i></button>
+        </div>
+        <div class="modal-body" style="overflow-y:auto; padding: 16px 24px;">
+          <p class="help-text" style="margin-bottom:16px;">設定觸發情境時的靈感面板。我們其實是用這 9 種果子，去對治大腦相反的「失控/肉體狀態」：</p>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">1. 仁愛 (Love) ↔ 自私與冷漠</div>
+              <small style="color:var(--text-secondary);">困在自我中心，無法顧及他人，或因受傷而對世界築起高牆。</small>
+            </div>
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">2. 喜樂 (Joy) ↔ 苦毒與絕望</div>
+              <small style="color:var(--text-secondary);">長期的憂鬱、抱怨與覺得世界不公平的受害者心態。</small>
+            </div>
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">3. 和平 (Peace) ↔ 焦慮與紛爭</div>
+              <small style="color:var(--text-secondary);">大腦轉個不停缺乏安全感（焦慮），或是不斷起衝突（紛爭）。</small>
+            </div>
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">4. 忍耐 (Patience) ↔ 急躁與易怒</div>
+              <small style="color:var(--text-secondary);">想要立刻看到結果的焦慮，或是計畫被打斷時爆發的怒氣。</small>
+            </div>
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">5. 恩慈 (Kindness) ↔ 嚴苛與刻薄</div>
+              <small style="color:var(--text-secondary);">對別人的苛刻，或包含強烈自我否定的完美主義。</small>
+            </div>
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">6. 良善 (Goodness) ↔ 惡意與算計</div>
+              <small style="color:var(--text-secondary);">失去單純動機，凡事以防衛或攻擊的思維出發。</small>
+            </div>
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">7. 信實 (Faithfulness) ↔ 動搖與背棄</div>
+              <small style="color:var(--text-secondary);">三分鐘熱度、過度承諾，或害怕失敗而在中途放棄。</small>
+            </div>
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">8. 溫柔 (Gentleness) ↔ 驕傲與強勢</div>
+              <small style="color:var(--text-secondary);">想強硬地掌控一切，不容許失控，內心實則充滿恐懼。</small>
+            </div>
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">9. 節制 (Self-control) ↔ 放縱與衝動失控</div>
+              <small style="color:var(--text-secondary);">滑手機停不下來、衝動購物後又深感懊悔的無力狀態。</small>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     
