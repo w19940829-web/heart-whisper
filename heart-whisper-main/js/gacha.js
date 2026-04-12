@@ -102,8 +102,6 @@ function openGacha() {
       grid.appendChild(btn);
     });
   }
-  
-  renderWeeklyFortuneLog();
 }
 
 
@@ -260,34 +258,6 @@ function saveFortuneToday() {
   
   localStorage.setItem('hw_fortune', JSON.stringify(fortuneHistory));
   showToast('💫 已珍藏為今日籤詩');
-  renderWeeklyFortuneLog();
-}
-
-function renderWeeklyFortuneLog() {
-  const dotsContainer = document.getElementById('weekly-dots');
-  if (!dotsContainer) return;
-  
-  dotsContainer.innerHTML = '';
-  // Generate last 7 days
-  const today = new Date();
-  
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
-    
-    const record = fortuneHistory.find(f => f.date === dateStr);
-    const dot = document.createElement('div');
-    
-    if (record) {
-      dot.className = 'weekly-dot filled';
-      dot.title = record.quoteText;
-    } else {
-      dot.className = 'weekly-dot empty';
-    }
-    
-    dotsContainer.appendChild(dot);
-  }
 }
 
 

@@ -50,22 +50,16 @@
           <div class="hero-sub">大腦喜歡輕輕地複習，慢慢來就好。</div>
         </div>
 
-        <!-- 心靈之樹 -->
-        <div class="soul-garden" id="soul-garden">
-          <div class="soul-tree-container">
-            <div class="soul-tree" id="soul-tree">
-              <div class="tree-crown" id="tree-crown"></div>
-              <div class="tree-trunk"></div>
-              <div class="tree-ground"></div>
-            </div>
-            <div class="soul-sparkles" id="soul-sparkles"></div>
+        <!-- Section: 靈魂日記 (置頂) -->
+        <div class="dashboard-section-title"><i class="ph-fill ph-notebook"></i> 靈魂日記</div>
+        <div class="card" onclick="openTimeline()">
+          <div class="card-icon" style="background:linear-gradient(135deg,#c4a3b1,#a67a8e); color:#fff;"><i class="ph-fill ph-clock-countdown"></i></div>
+          <div class="card-content">
+            <div class="card-title">時間軸日記</div>
+            <div class="card-desc">回顧你的靈修足跡與心境變化</div>
           </div>
-          <div class="soul-garden-info">
-            <div class="soul-points"><span id="soul-points-count">0</span> ✨</div>
-            <div class="soul-label">心靈光點</div>
-          </div>
+          <div class="card-action"><i class="ph-bold ph-caret-right"></i></div>
         </div>
-
 
         
         <!-- Section 3: 情緒急救 -->
@@ -116,16 +110,7 @@
           <div class="dv-text"></div>
         </div>
 
-        <!-- Section: 靈魂日記 -->
-        <div class="dashboard-section-title"><i class="ph-fill ph-notebook"></i> 靈魂日記</div>
-        <div class="card" onclick="openTimeline()">
-          <div class="card-icon" style="background:linear-gradient(135deg,#c4a3b1,#a67a8e); color:#fff;"><i class="ph-fill ph-clock-countdown"></i></div>
-          <div class="card-content">
-            <div class="card-title">時間軸日記</div>
-            <div class="card-desc">回顧你的靈修足跡與心境變化</div>
-          </div>
-          <div class="card-action"><i class="ph-bold ph-caret-right"></i></div>
-        </div>
+
 
         
         <!-- App Control -->
@@ -227,7 +212,7 @@
         <div id="bible-sheet-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:199;" onclick="_closeBibleBottomSheet()"></div>
 
         <!-- Floating Pill (shown during reading) -->
-        <div id="bible-floating-pill" class="bible-floating-pill" style="display:none;" onclick="toggleBibleBottomSheet()"></div>
+
 
         <!-- Bottom Sheet -->
         <div id="bible-bottom-sheet" class="bible-bottom-sheet">
@@ -354,13 +339,7 @@
           </div>
         </div>
 
-        <!-- Step 4: Weekly Fortune Log -->
-        <div class="fortune-weekly-log" id="fortune-weekly-log">
-          <div class="weekly-log-title">📅 本週籤詩</div>
-          <div class="weekly-dots" id="weekly-dots">
-            <!-- 7 dots rendered by JS -->
-          </div>
-        </div>
+
       </section>
 
       <!-- ====================== -->

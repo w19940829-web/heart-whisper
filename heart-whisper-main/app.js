@@ -350,7 +350,6 @@ function saveQuote() {
   localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
   
   showToast('🌸 金句已收錄為你的專屬工具！');
-  if(typeof addSoulPoints === 'function') addSoulPoints(3);
   
   // Cleanup
   document.getElementById('quote-input').value = '';
@@ -397,54 +396,8 @@ document.addEventListener('DOMContentLoaded', () => {
 /* --- Library, Slideshow, Gacha now in js/library.js and js/gacha.js --- */
 
 
-// ================================
-// 14. Soul Garden (心靈花園)
-// ================================
-function getSoulPoints() {
-  return parseInt(localStorage.getItem('hw_soul_points') || '0');
-}
+/* --- Soul Garden removed in V2.1 --- */
 
-function addSoulPoints(amount) {
-  const current = getSoulPoints();
-  const newTotal = current + amount;
-  localStorage.setItem('hw_soul_points', newTotal.toString());
-  updateSoulGarden();
-  spawnSparkles(amount);
-}
-
-function updateSoulGarden() {
-  const points = getSoulPoints();
-  const el = document.getElementById('soul-points-count');
-  if (el) el.textContent = points;
-  
-  // Tree growth levels: 0-4, 5-14, 15-29, 30-49, 50-99, 100+
-  const crown = document.getElementById('tree-crown');
-  if (!crown) return;
-  
-  crown.className = 'tree-crown';
-  if (points < 5) crown.classList.add('level-0');
-  else if (points < 15) crown.classList.add('level-1');
-  else if (points < 30) crown.classList.add('level-2');
-  else if (points < 50) crown.classList.add('level-3');
-  else if (points < 100) crown.classList.add('level-4');
-  else crown.classList.add('level-5');
-}
-
-function spawnSparkles(count) {
-  const container = document.getElementById('soul-sparkles');
-  if (!container) return;
-  
-  for (let i = 0; i < Math.min(count, 8); i++) {
-    setTimeout(() => {
-      const dot = document.createElement('div');
-      dot.className = 'sparkle-dot';
-      dot.style.left = (20 + Math.random() * 40) + 'px';
-      dot.style.top = (10 + Math.random() * 40) + 'px';
-      container.appendChild(dot);
-      setTimeout(() => dot.remove(), 2200);
-    }, i * 150);
-  }
-}
 
 // ================================
 // 15. Sticky Notes (共鳴便利貼)

@@ -76,32 +76,9 @@ function _bibleShowPickerState(state) {
   document.getElementById('bible-reader').style.display = state === 'reader' ? 'block' : 'none';
   document.getElementById('bible-loading').style.display = 'none';
 
-  const pill = document.getElementById('bible-floating-pill');
-  if (pill) {
-    pill.style.display = state === 'reader' ? 'flex' : 'none';
-  }
-
-  const backLabel = document.getElementById('bible-back-label');
-  const navInfo = document.getElementById('bible-nav-info');
-
-  if (state === 'books') {
-    backLabel.textContent = '返回';
-    navInfo.innerHTML = '';
-  } else if (state === 'chapters' && bibleCurrentBook >= 0) {
-    backLabel.textContent = '書卷';
-    navInfo.textContent = bibleData[bibleCurrentBook].name;
-  } else if (state === 'reader' && bibleCurrentBook >= 0 && bibleCurrentChapter >= 0) {
-    backLabel.textContent = '章節';
-    
-    // Check if read
-    const readLog = getBibleReadLog();
-    const logKey = `${bibleCurrentBook}_${bibleCurrentChapter}`;
-    const isRead = !!readLog[logKey];
-    
     navInfo.innerHTML = `${bibleData[bibleCurrentBook].name} ${bibleCurrentChapter + 1} &nbsp;
       <button class="bible-font-btn" onclick="bibleFontChange(-1)">A－</button>
-      <button class="bible-font-btn" onclick="bibleFontChange(1)">A＋</button>
-      <button class="bible-top-check-btn ${isRead ? 'read' : ''}" id="bible-top-finish-btn" onclick="bibleMarkAsRead()">${isRead ? '✅ 已讀' : '🎯 打卡'}</button>`;
+      <button class="bible-font-btn" onclick="bibleFontChange(1)">A＋</button>`;
   }
 }
 
@@ -122,20 +99,34 @@ function _bibleRenderBookPicker() {
     banner.style.gap = '8px';
     banner.style.alignItems = 'flex-start';
     
-    let html = '';
+    // Calculate yearly stats
+    const readLog = getBibleReadLog();
+    const currentYear = new Date().getFullYear().toString();
+    let yearlyReads = 0;
+    Object.values(readLog).forEach(val => {
+      const dateStr = typeof val === 'string' ? val : (val?.date || '');
+      if (dateStr && dateStr.startsWith(currentYear)) yearlyReads++;
+    });
     
+    let html = '';
+    html += `<div style="display:flex; justify-content:space-between; width:100%; align-items:center;">`;
     if (count > 0) {
-      html += `<div style="font-weight:700; color:#d4a96a; font-size:1.05rem;"><i class="ph-fill ph-fire"></i> 連續靈修讀經 ${count} 天</div>`;
+      html += `<div style="font-weight:700; color:#e88c30; font-size:1rem;"><i class="ph-fill ph-fire"></i> 連續靈修 ${count} 天</div>`;
+    } else {
+      html += `<div></div>`;
     }
+    html += `<div class="bible-year-stats">📖 今年已讀 ${yearlyReads} 章</div>`;
+    html += `</div>`;
     
     if (bm) {
-      html += `<div style="display:flex; width:100%; justify-content:space-between; align-items:center;">
-        <span>📌 上次讀到：<b>${bm.bookName} 第${bm.chapterIdx + 1}章</b></span>
-        <button class="bible-continue-btn" onclick="_bibleSelectBook(${bm.bookIdx}); _bibleSelectChapter(${bm.chapterIdx});">繼續閱讀 →</button>
+      const verseText = bm.verseIdx !== undefined ? `:${bm.verseIdx + 1}` : '';
+      html += `<div style="display:flex; width:100%; justify-content:space-between; align-items:center; margin-top:4px;">
+        <span>📌 上次讀到：<b>${bm.bookName} ${bm.chapterIdx + 1}章${verseText}</b></span>
+        <button class="bible-continue-btn" onclick="_bibleSelectBook(${bm.bookIdx}); _bibleSelectChapter(${bm.chapterIdx}); if(${bm.verseIdx}!==undefined)setTimeout(()=>_scrollToVerse(${bm.verseIdx}),400);">繼續閱讀 →</button>
       </div>`;
     }
     
-    if (!count && !bm) {
+    if (!count && !bm && yearlyReads === 0) {
       banner.style.display = 'none';
     } else {
       banner.innerHTML = html;
@@ -223,8 +214,11 @@ function _bibleSelectChapter(chapterIdx) {
     const key = _bibleKey(bibleCurrentBook, chapterIdx, idx);
     const hasNote = !!notes[key];
 
+    const bm = getBibleBookmark();
+    const isBookmarked = (bm && bm.bookIdx === bibleCurrentBook && bm.chapterIdx === chapterIdx && bm.verseIdx === idx);
+    
     const row = document.createElement('div');
-    row.className = 'bible-verse-row';
+    row.className = 'bible-verse-row' + (isBookmarked ? ' verse-bookmarked' : '');
     row.id = `verse-row-${idx}`;
 
     row.innerHTML = `
@@ -244,6 +238,7 @@ function _bibleSelectChapter(chapterIdx) {
       <div class="bible-verse-btns">
         <button class="bible-note-trigger" title="寫筆記" onclick="bibleToggleNoteInput(${idx})">📝</button>
         <button class="bible-bookmark-btn" title="收藏至金句庫" onclick="bibleBookmarkVerse(${bibleCurrentBook}, ${chapterIdx}, ${idx})">🔖</button>
+        <button class="bible-set-bookmark-btn" title="標記讀到這裡" onclick="bibleSetBookmark(${idx})">📌</button>
       </div>
     `;
     list.appendChild(row);
@@ -264,8 +259,7 @@ function _bibleSelectChapter(chapterIdx) {
   // Init swipe
   _initBibleSwipe();
 
-  // Update bottom bar
-  _updateBottomBar();
+
 }
 
 /* ─── Chapter Navigation (Prev/Next) ─────────────────────── */
@@ -281,49 +275,48 @@ function bibleGoNextChapter() {
   }
 }
 
-/* ─── Chapter Progress ────────────────────────────────────── */
-function bibleMarkAsRead() {
-  if (bibleCurrentBook < 0 || bibleCurrentChapter < 0) return;
-  const readLog = getBibleReadLog();
-  const logKey = `${bibleCurrentBook}_${bibleCurrentChapter}`;
-  if (!readLog[logKey]) {
-    readLog[logKey] = true;
-    saveBibleReadLog(readLog);
-    _updateBibleStreak();
-    
-    // Optional celebration effect
-    const streak = getBibleStreak();
-    showToast(`✨ 太棒了！您已達成連續 ${streak.count} 天靈修！讀經進度已記錄！`);
-    
-    const topBtn = document.getElementById('bible-top-finish-btn');
-    if (topBtn) {
-      topBtn.classList.add('read');
-      topBtn.textContent = '✅ 已讀';
-    }
+function _scrollToVerse(verseIdx) {
+  const row = document.getElementById(`verse-row-${verseIdx}`);
+  if (row) {
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
 
-/* ─── Swipe Gesture ───────────────────────────────────────── */
-function _initBibleSwipe() {
-  const el = document.getElementById('bible-reader');
-  if (!el || el._swipeInited) return;
-  el._swipeInited = true;
-  let startX = 0;
-  el.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
-  el.addEventListener('touchend', e => {
-    const dx = e.changedTouches[0].clientX - startX;
-    if (Math.abs(dx) > 60) {
-      if (dx < 0) bibleGoNextChapter();
-      else bibleGoPrevChapter();
-    }
-  }, { passive: true });
+/* ─── Bookmark & Progress Tracking ──────────────────────── */
+function bibleSetBookmark(verseIdx) {
+  if (bibleCurrentBook < 0 || bibleCurrentChapter < 0) return;
+  
+  const book = bibleData[bibleCurrentBook];
+  const verseText = book.chapters[bibleCurrentChapter][verseIdx];
+  const bm = {
+    bookIdx: bibleCurrentBook,
+    chapterIdx: bibleCurrentChapter,
+    verseIdx: verseIdx,
+    bookName: book.name,
+    verseText: verseText
+  };
+  saveBibleBookmark(bm);
+  
+  // Record chapter as read to keep heatmap and stats updated
+  const readLog = getBibleReadLog();
+  const logKey = `${bibleCurrentBook}_${bibleCurrentChapter}`;
+  if (!readLog[logKey]) {
+    readLog[logKey] = new Date().toISOString();
+    saveBibleReadLog(readLog);
+  }
+  
+  _updateBibleStreak();
+  
+  showToast(`📌 已標記：${book.name} ${bibleCurrentChapter + 1}:${verseIdx + 1}`);
+  
+  // Re-render chapter explicitly to update the .verse-bookmarked class visually
+  _bibleSelectChapter(bibleCurrentChapter);
 }
 
 function _initBibleScroll() {
   const el = document.getElementById('view-bible');
   if (!el || el._scrollInited) return;
   el._scrollInited = true;
-  // Previously we handled pill shrink here, now pill is a fixed Side FAB.
 }
 
 /* ─── Font Size ───────────────────────────────────────────── */
@@ -419,45 +412,7 @@ function bibleBookmarkVerse(bookIdx, chapterIdx, verseIdx) {
   showToast(`🔖 已收藏「${ref}」到金句庫！`);
 }
 
-/* ─── Bottom Sheet ────────────────────────────────────────── */
-function _updateBottomBar() {
-  const notes = getBibleNotes();
-  const pill = document.getElementById('bible-floating-pill');
-  if (!pill) return;
-  const chapterNoteCount = bibleCurrentBook >= 0 && bibleCurrentChapter >= 0
-    ? Object.keys(notes).filter(k => k.startsWith(`${bibleData[bibleCurrentBook].name}_${bibleCurrentChapter}_`)).length
-    : 0;
-  
-  pill.innerHTML = `<i class="ph-bold ph-note-pencil"></i>`;
-  if (chapterNoteCount > 0) {
-    pill.innerHTML += `<div style="position:absolute; top:-4px; right:-4px; background:#e57373; color:white; font-size:0.6rem; border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-weight:bold;">${chapterNoteCount}</div>`;
-  }
-}
 
-function toggleBibleBottomSheet() {
-  const sheet = document.getElementById('bible-bottom-sheet');
-  const overlay = document.getElementById('bible-sheet-overlay');
-  if (!sheet) return;
-  _bibleBottomSheetOpen = !_bibleBottomSheetOpen;
-  sheet.classList.toggle('open', _bibleBottomSheetOpen);
-  if (overlay) overlay.style.display = _bibleBottomSheetOpen ? 'block' : 'none';
-  if (_bibleBottomSheetOpen) renderBottomSheetNotes(_bibleBottomActiveTab);
-}
-
-function _closeBibleBottomSheet() {
-  const sheet = document.getElementById('bible-bottom-sheet');
-  const overlay = document.getElementById('bible-sheet-overlay');
-  _bibleBottomSheetOpen = false;
-  if (sheet) sheet.classList.remove('open');
-  if (overlay) overlay.style.display = 'none';
-}
-
-function switchBottomTab(tab) {
-  _bibleBottomActiveTab = tab;
-  document.querySelectorAll('.bottom-sheet-tab').forEach(b => b.classList.remove('active'));
-  document.getElementById(`btab-${tab}`)?.classList.add('active');
-  renderBottomSheetNotes(tab);
-}
 
 function renderBottomSheetNotes(tab) {
   const container = document.getElementById('bottom-sheet-content');
