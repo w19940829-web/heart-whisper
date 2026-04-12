@@ -1,6 +1,7 @@
 // Core App State & Logic
 let quotesDb = JSON.parse(localStorage.getItem('hw_quotes')) || [];
 let mailboxDb = JSON.parse(localStorage.getItem('hw_mailboxDb')) || [];
+let scriptureDb = JSON.parse(localStorage.getItem('hw_scriptureDb')) || [];
 let currentProcessingQuote = null;
 let currentReviewSession = [];
 let reviewIndex = 0;
@@ -140,6 +141,9 @@ function switchView(viewId) {
   
   if (viewId === 'view-home') {
     updateDashboard();
+  } else if (viewId === 'view-add') {
+    renderManualCategorySelect();
+    renderEmotionVocabGrid();
   }
 }
 
@@ -186,6 +190,7 @@ function processToastQueue() {
 function openSettings() {
   document.getElementById('settings-modal').classList.add('active');
   document.getElementById('gemini-key').value = localStorage.getItem('gemini_api_key') || '';
+  document.getElementById('openrouter-key').value = localStorage.getItem('openrouter_api_key') || '';
 }
 
 function closeSettings() {
@@ -193,14 +198,23 @@ function closeSettings() {
 }
 
 function saveSettings() {
-  const key = document.getElementById('gemini-key').value.trim();
-  if (key) {
-    aiService.setKey(key);
-    showToast('🔑 API Key 儲存成功');
+  const geminiKey = document.getElementById('gemini-key').value.trim();
+  const openRouterKey = document.getElementById('openrouter-key').value.trim();
+  
+  if (geminiKey) {
+    aiService.setKey(geminiKey);
   } else {
-    showToast('已清除 API Key');
     localStorage.removeItem('gemini_api_key');
+    aiService.apiKey = '';
   }
+  
+  if (openRouterKey) {
+    localStorage.setItem('openrouter_api_key', openRouterKey);
+  } else {
+    localStorage.removeItem('openrouter_api_key');
+  }
+  
+  showToast('🔑 API Keys 儲存成功');
   closeSettings();
 }
 
@@ -279,132 +293,59 @@ function importData(event) {
   reader.readAsText(file);
 }
 
-/* --- ADD NEW QUOTE (PHASE 1) --- */
-async function processNewQuote() {
-  const btn = document.getElementById('btn-analyze');
-  const inputEl = document.getElementById('quote-input');
-  const text = inputEl.value.trim();
+/* --- ADD NEW QUOTE (PHASE 1 - MANUAL) --- */
+
+function generateLocalQuoteMetadata(text) {
+  // Simple chunking based on standard Chinese/English punctuation
+  let chunks = text.split(/[,.，。!?:；\n]/).map(s => s.trim()).filter(s => s.length > 0);
+  if (chunks.length === 0) chunks = [text];
   
-  if (!text) {
-    showToast('請先輸入你要記憶的金句');
-    return;
+  // Simple cloze logic: try to hide a word. We can just pick the longest chunk, and hide 2-4 chars in the middle.
+  let clozeStr = text;
+  let wordToHide = "";
+  if (text.length > 4) {
+    const matches = text.match(/[\u4e00-\u9fa5A-Za-z]{2,4}/g);
+    if(matches && matches.length > 0) {
+      wordToHide = matches[Math.floor(Math.random() * matches.length)];
+    } else {
+      wordToHide = text.substring(Math.floor(text.length / 2), Math.floor(text.length / 2) + 2);
+    }
+  } else if (text.length > 0) {
+    wordToHide = text.substring(0, 1);
   }
   
-  if (!aiService.hasKey()) {
-    showToast('請先點擊右上角設定 API 金鑰');
-    openSettings();
-    return;
+  if (wordToHide) {
+    // Escape for regex and replace the first occurrence
+    clozeStr = text.replace(wordToHide, `[${wordToHide}]`);
   }
 
-  btn.disabled = true;
-  btn.querySelector('.btn-text').innerHTML = '<i class="ph-fill ph-wind"></i> 正在溫柔拆解中...';
-  btn.querySelector('.loading-spinner').style.display = 'inline-block';
-  
-  try {
-    const aiResult = await aiService.processNewQuote(text);
-    
-    currentProcessingQuote = {
-      id: Date.now().toString(),
-      original: text,
-      addedAt: Date.now(),
-      nextReviewDate: Date.now(), // 立刻即可複習（方便初次體驗與強化記憶）
-      history: [],
-      ...aiResult // merges focus_mode, cloze_versions, reflection_anchor
-    };
-    
-    // Render Step 2
-    renderAIAnchorStage(currentProcessingQuote);
-    
-  } catch (err) {
-    console.error(err);
-    showToast('拆解失敗：' + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.querySelector('.btn-text').innerHTML = '<i class="ph-fill ph-sparkle"></i> 幫我拆解金句';
-    btn.querySelector('.loading-spinner').style.display = 'none';
-  }
+  return {
+    focus_mode: {
+      chunked_quote: chunks,
+      micro_task: "請專注在心裡默唸這段話"
+    },
+    cloze_versions: {
+      low_pressure: clozeStr,
+      standard: clozeStr
+    }
+  };
 }
 
-function renderAIAnchorStage(quoteObj) {
-  document.getElementById('reflection-section').style.display = 'block';
-  
-  // Render Chunks
-  document.getElementById('focus-instruction').textContent = quoteObj.focus_mode.micro_task;
-  const chunkContainer = document.getElementById('chunked-quote-display');
-  chunkContainer.innerHTML = '';
-  quoteObj.focus_mode.chunked_quote.forEach(chunk => {
-    const span = document.createElement('span');
-    span.className = 'chunk-line';
-    span.textContent = chunk;
-    chunkContainer.appendChild(span);
-  });
-  
-  // Render category badge
-  const catDisplay = document.getElementById('ai-category-display');
-  if (catDisplay) {
-    catDisplay.textContent = quoteObj.category || '';
-    catDisplay.style.display = quoteObj.category ? 'inline-block' : 'none';
+function renderManualCategorySelect() {
+  const select = document.getElementById('manual-category-select');
+  if (!select) return;
+  select.innerHTML = '<option value="">請選擇一個最適合的分類</option>';
+  for (const [catId, catData] of Object.entries(CATEGORY_MAP)) {
+    const opt = document.createElement('option');
+    opt.value = catId;
+    opt.textContent = catData.name;
+    select.appendChild(opt);
   }
-  
-  // Render trigger scene
-  const sceneDisplay = document.getElementById('ai-trigger-scene');
-  const triggerScene = quoteObj.emotional_anchors?.trigger_scene || '';
-  if (sceneDisplay) {
-    sceneDisplay.textContent = triggerScene ? `💡 ${triggerScene}` : '';
-    sceneDisplay.style.display = triggerScene ? 'block' : 'none';
-  }
-  
-  // Render AI-recommended anchors
-  const optionsContainer = document.getElementById('scenario-options');
-  optionsContainer.innerHTML = '';
-  
-  const anchors = quoteObj.emotional_anchors || {};
-  const aiAnchors = [];
-  
-  if (anchors.primary) {
-    aiAnchors.push({ 
-      trigger: anchors.primary, 
-      emotion: anchors.primary_emotion || findEmotionForTrigger(anchors.primary) || '迷茫'
-    });
-  }
-  if (anchors.secondary && anchors.secondary !== anchors.primary) {
-    aiAnchors.push({ 
-      trigger: anchors.secondary,
-      emotion: anchors.secondary_emotion || findEmotionForTrigger(anchors.secondary) || '迷茫'
-    });
-  }
-  
-  // Fallback: old suggested_tags format
-  if (aiAnchors.length === 0) {
-    const tags = quoteObj.reflection_anchor?.suggested_tags || quoteObj.reflection_anchor?.suggested_scenarios || [];
-    tags.forEach(t => aiAnchors.push({ trigger: t, emotion: '迷茫' }));
-  }
-  
-  // Render AI recommended chips
-  aiAnchors.forEach((item, i) => {
-    const emotionData = EMOTION_VOCAB[item.emotion] || { emoji: '💫' };
-    const div = document.createElement('div');
-    div.className = 'scenario-chip' + (i === 0 ? ' selected' : '');
-    div.innerHTML = `${emotionData.emoji} ${item.trigger}`;
-    div.dataset.trigger = item.trigger;
-    div.dataset.emotion = item.emotion;
-    div.onclick = () => selectAnchorChip(div);
-    optionsContainer.appendChild(div);
-  });
-  
-  // Pre-fill with primary anchor
-  if (aiAnchors.length > 0) {
-    document.getElementById('custom-reflection').value = aiAnchors[0].trigger;
-  }
-  
-  // Render expandable full emotion vocabulary
-  renderEmotionVocabGrid();
 }
 
 function selectAnchorChip(chip) {
-  document.querySelectorAll('#scenario-options .scenario-chip, #emotion-vocab-grid .scenario-chip').forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll('#emotion-vocab-grid .scenario-chip').forEach(el => el.classList.remove('selected'));
   chip.classList.add('selected');
-  document.getElementById('custom-reflection').value = chip.dataset.trigger;
 }
 
 function renderEmotionVocabGrid() {
@@ -439,385 +380,236 @@ function renderEmotionVocabGrid() {
   }
 }
 
-function toggleEmotionVocab() {
-  const grid = document.getElementById('emotion-vocab-grid');
-  const btn = document.getElementById('toggle-vocab-btn');
-  if (grid.style.display === 'none' || !grid.style.display) {
-    grid.style.display = 'block';
-    btn.textContent = '▲ 收起完整詞庫';
-  } else {
-    grid.style.display = 'none';
-    btn.textContent = '▼ 我想自己選（展開完整詞庫）';
-  }
-}
-
 function saveQuote() {
-  const customRef = document.getElementById('custom-reflection').value.trim();
+  const text = document.getElementById('quote-input').value.trim();
+  if (!text) {
+    showToast('請先輸入你要記憶的金句');
+    return;
+  }
+
+  const categorySelect = document.getElementById('manual-category-select');
+  const catId = categorySelect ? categorySelect.value : '';
   
-  // Find selected chip for structured data
+  if (!catId) {
+    showToast('請選擇這句話的核心分類');
+    return;
+  }
+
   const selectedChip = document.querySelector('.scenario-chip.selected');
-  const selectedTrigger = selectedChip?.dataset?.trigger || customRef;
-  const selectedEmotion = selectedChip?.dataset?.emotion || findEmotionForTrigger(selectedTrigger) || '迷茫';
+  const selectedTrigger = selectedChip?.dataset?.trigger;
+  const selectedEmotion = selectedChip?.dataset?.emotion || findEmotionForTrigger(selectedTrigger) || 'emo_confusion';
   
-  // Set emotional anchors (new structure)
-  if (!currentProcessingQuote.emotional_anchors) {
-    currentProcessingQuote.emotional_anchors = {};
+  if (!selectedTrigger) {
+    showToast('請選擇一個情緒錨點');
+    return;
   }
   
-  // If user manually changed, override AI's recommendation
-  if (selectedTrigger && selectedTrigger !== currentProcessingQuote.emotional_anchors.primary) {
-    currentProcessingQuote.emotional_anchors.primary = selectedTrigger;
-    currentProcessingQuote.emotional_anchors.primary_emotion = selectedEmotion;
-  }
+  const metadata = generateLocalQuoteMetadata(text);
+
+  const newQuote = {
+    id: Date.now().toString(),
+    original: text,
+    addedAt: Date.now(),
+    nextReviewDate: Date.now(),
+    history: [],
+    category: catId,
+    emotional_anchors: {
+      primary: selectedTrigger,
+      primary_emotion: selectedEmotion
+    },
+    user_anchor: selectedTrigger,
+    ...metadata
+  };
   
-  // Backward compatibility: set user_anchor
-  currentProcessingQuote.user_anchor = selectedTrigger || currentProcessingQuote.emotional_anchors?.primary || '未分類';
-  
-  quotesDb.push(currentProcessingQuote);
+  quotesDb.push(newQuote);
   localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
   
   showToast('🌸 金句已收錄為你的專屬工具！');
-  addSoulPoints(3);
+  if(typeof addSoulPoints === 'function') addSoulPoints(3);
   
   // Cleanup
   document.getElementById('quote-input').value = '';
-  document.getElementById('reflection-section').style.display = 'none';
-  currentProcessingQuote = null;
+  document.querySelectorAll('.scenario-chip.selected').forEach(el => el.classList.remove('selected'));
+  if (categorySelect) categorySelect.value = '';
   
   switchView('view-home');
 }
 
-/* --- DAILY REVIEW (PHASE 2 & 3) --- */
-function startDailyReview() {
-  const now = new Date().getTime();
-  currentReviewSession = quotesDb.filter(q => q.nextReviewDate <= now).sort(() => 0.5 - Math.random());
-  
-  if(currentReviewSession.length === 0) {
-    showToast('現在沒有需要複習的金句喔！先休息一下吧。');
+/* ============================================ */
+/* === CARD BUILDER: 圖卡工作室核心逐輯       === */
+/* ============================================ */
+
+const FONT_CDN = {
+  'font-chenyu': 'https://cdn.jsdelivr.net/gh/max32002/ChenYuluoyan-Thin-Monospaced@1/WebFont/ChenYuluoyan-Thin.css',
+  'font-iansui':  'https://cdn.jsdelivr.net/gh/max32002/iansui@main/WebFont/Iansui-Regular.css',
+  'font-seto':    'https://cdn.jsdelivr.net/gh/max32002/seto@main/WebFont/SetoFont.css',
+  'font-lxgw':    'https://cdn.jsdelivr.net/npm/lxgw-wenkai-tc-webfont@1.7.0/style.css',
+  'font-serif':   'https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;700&display=swap',
+  'font-twkai':   'https://cdn.jsdelivr.net/gh/max32002/naikaifont@main/WebFont/NaikaiFont-Regular.css',
+  'font-swei':    'https://cdn.jsdelivr.net/gh/max32002/swei-gothic@main/WebFont/SweiGothicCJKtc-Regular.css',
+  'font-default': null // System font, no loading needed
+};
+
+const loadedFonts = new Set(['font-default']);
+let currentCardQuote = null;
+let currentFontClass = 'font-default';
+let currentBgClass = 'bg-theme-pearl';
+let currentRatioClass = 'ratio-9-16';
+let currentLayoutClass = 'layout-vertical';
+
+function openCardBuilderFromHome() {
+  if (quotesDb.length === 0) {
+    showToast('金句庫還是空的，先去採集一句吧 ✨');
     return;
   }
-  
-  reviewIndex = 0;
-  switchView('view-review');
-  renderReviewCard();
+  // Pick a random quote as starter
+  const q = quotesDb[Math.floor(Math.random() * quotesDb.length)];
+  openCardBuilder(q.id);
 }
 
-function renderReviewCard() {
-  if (reviewIndex >= currentReviewSession.length) {
-    // Review complete
-    document.getElementById('review-container').style.display = 'none';
-    document.getElementById('review-complete').style.display = 'block';
-    
-    // Update streak (dummy logic)
-    const currentStreak = parseInt(localStorage.getItem('hw_streak') || '0', 10);
-    localStorage.setItem('hw_streak', currentStreak + 1);
-    
-    return;
-  }
+function openCardBuilder(quoteId) {
+  const q = quotesDb.find(q => q.id === quoteId);
+  if (!q) return;
+  currentCardQuote = q;
+  switchView('view-card-builder');
   
-  document.getElementById('review-container').style.display = 'block';
-  document.getElementById('review-complete').style.display = 'none';
-  document.getElementById('review-current').textContent = reviewIndex + 1;
-  document.getElementById('review-total').textContent = currentReviewSession.length;
+  // Populate canvas text
+  const canvas = document.getElementById('export-target');
+  const quoteDom = canvas.querySelector('.card-quote-content');
+  if (quoteDom) quoteDom.textContent = q.original;
   
-  const q = currentReviewSession[reviewIndex];
-  
-  // Emotion Wake up
-  document.getElementById('review-wakeup').textContent = `記得嗎？這是你打算「${q.user_anchor}」時，對自己說的話。`;
-  
-  // Render Cloze carefully (replace [] with text inputs)
-  const clozeText = q.cloze_versions.standard || q.cloze_versions.low_pressure;
-  
-  // Replace [text] with interactive inputs with dynamic resizer wrapper
-  const html = clozeText.replace(/\[(.*?)\]/g, (match, p1) => {
-    const minChars = Math.max(3, p1.length); 
-    return `<span class="cloze-resizer" data-value="" style="--min-chars: ${minChars}">
-              <input type="text" class="cloze-input" data-answer="${p1}" placeholder="" oninput="this.parentNode.dataset.value = this.value; checkClozeInput(this);">
-            </span>`;
-  });
-  
-  document.getElementById('cloze-display').innerHTML = html;
-  
-  // Reset grade buttons & reveal
-  document.getElementById('original-reveal').style.display = 'none';
-  document.getElementById('original-reveal').textContent = '';
-  document.getElementById('original-reveal').classList.remove('fade-in-up');
-  document.getElementById('encouragement-msg').style.display = 'none';
-  
-  document.getElementById('grade-section').style.opacity = '0.5';
-  document.getElementById('grade-section').style.pointerEvents = 'none';
-  
-  const revealBtn = document.getElementById('reveal-btn');
-  if (revealBtn) revealBtn.innerHTML = '<i class="ph-fill ph-eye"></i> 看原句';
-  
-  // TTS Bind
-  document.getElementById('review-tts-btn').onclick = () => playTTS(q.original);
+  // Populate emotion tag
+  const emo = q.emotional_anchors?.primary || '';
+  const emoKey = q.emotional_anchors?.primary_emotion || '';
+  const emoData = EMOTION_VOCAB[emoKey];
+  const emotionTag = document.getElementById('canvas-emotion-tag');
+  if (emotionTag) emotionTag.textContent = emoData ? `${emoData.emoji} ${emo}` : (emo || '');
 }
 
-function toggleReveal() {
-  const oRev = document.getElementById('original-reveal');
-  const gradeSec = document.getElementById('grade-section');
-  const revealBtn = document.getElementById('reveal-btn');
-  const inputs = document.querySelectorAll('.cloze-input');
-  
-  const isRevealed = oRev.style.display === 'block';
+function switchToolTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tool-panel').forEach(p => p.style.display = 'none');
+  document.querySelector(`.tab-btn[onclick*="'${tab}'"]`).classList.add('active');
+  document.getElementById(`panel-${tab}`).style.display = 'block';
+}
 
-  if (isRevealed) {
-    // Hide original sentence
-    oRev.style.display = 'none';
-    oRev.classList.remove('fade-in-up');
-    if (revealBtn) revealBtn.innerHTML = '<i class="ph-fill ph-eye"></i> 看原句';
+function applyFont(fontClass, btnEl) {
+  const canvas = document.getElementById('export-target');
+  
+  // If font not yet loaded, inject CDN link first
+  if (!loadedFonts.has(fontClass) && FONT_CDN[fontClass]) {
+    // Show loading overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'font-loading-overlay';
+    overlay.id = 'font-loading-overlay';
+    overlay.innerHTML = `<div class="font-loading-spinner"></div> 字型載入中…`;
+    canvas.appendChild(overlay);
     
-    // Check if the user had already gotten it completely correct naturally
-    const allCorrect = Array.from(inputs).every(el => el.classList.contains('correct'));
-    
-    if (!allCorrect) {
-      // Revert inputs that were auto-revealed
-      inputs.forEach(el => {
-        if (el.classList.contains('revealed')) {
-          el.value = '';
-          el.parentNode.dataset.value = '';
-          el.classList.remove('revealed');
-          el.readOnly = false;
-        }
-      });
-      // Hide grade section again
-      gradeSec.style.opacity = '0.5';
-      gradeSec.style.pointerEvents = 'none';
-    }
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = FONT_CDN[fontClass];
+    link.onload = () => {
+      loadedFonts.add(fontClass);
+      const ov = document.getElementById('font-loading-overlay');
+      if (ov) ov.remove();
+      _applyFontClass(canvas, fontClass, btnEl);
+    };
+    link.onerror = () => {
+      const ov = document.getElementById('font-loading-overlay');
+      if (ov) ov.remove();
+      showToast('字型載入失敗，請檢查網路');
+    };
+    document.head.appendChild(link);
   } else {
-    // Show original sentence
-    if (revealBtn) revealBtn.innerHTML = '<i class="ph-fill ph-eye-closed"></i> 收起原句';
-    
-    // Auto-fill all inputs revealing the answer
-    inputs.forEach(el => {
-      if (!el.classList.contains('correct')) {
-        el.value = el.getAttribute('data-answer');
-        el.parentNode.dataset.value = el.value; // Sync resizer
-        el.classList.add('revealed');
-        el.readOnly = true;
+    _applyFontClass(canvas, fontClass, btnEl);
+  }
+}
+
+function _applyFontClass(canvas, fontClass, btnEl) {
+  canvas.classList.remove(currentFontClass);
+  canvas.classList.add(fontClass);
+  currentFontClass = fontClass;
+  loadedFonts.add(fontClass);
+  
+  document.querySelectorAll('.font-opts .opt-btn').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+}
+
+function applyBg(bgClass, btnEl) {
+  const canvas = document.getElementById('export-target');
+  canvas.classList.remove(currentBgClass);
+  canvas.classList.add(bgClass);
+  currentBgClass = bgClass;
+  
+  document.querySelectorAll('.bg-opts .opt-btn').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+}
+
+function applyRatio(ratioClass, btnEl) {
+  const canvas = document.getElementById('export-target');
+  canvas.classList.remove(currentRatioClass);
+  canvas.classList.add(ratioClass);
+  currentRatioClass = ratioClass;
+  
+  document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+}
+
+function applyLayoutDir(dir, btnEl) {
+  const canvas = document.getElementById('export-target');
+  const newClass = 'layout-' + dir;
+  canvas.classList.remove(currentLayoutClass);
+  canvas.classList.add(newClass);
+  currentLayoutClass = newClass;
+  
+  document.querySelectorAll('.layout-btn').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+}
+
+function toggleMetadata(show) {
+  const metaBox = document.getElementById('card-metadata-box');
+  if (metaBox) metaBox.classList.toggle('hidden', !show);
+}
+
+async function exportCard() {
+  const canvas = document.getElementById('export-target');
+  if (!canvas) return;
+  
+  showToast('正在產生高畫質圖卡...');
+  
+  try {
+    // Use dom-to-image for high quality, handles complex CSS (gradients, SVG noise)
+    const scale = 3; // 3x for crisp phone wallpapers
+    const dataUrl = await domtoimage.toPng(canvas, {
+      width: canvas.offsetWidth * scale,
+      height: canvas.offsetHeight * scale,
+      style: {
+        transform: `scale(${scale})`,
+        transformOrigin: 'top left',
+        width: canvas.offsetWidth + 'px',
+        height: canvas.offsetHeight + 'px'
       }
     });
     
-    oRev.style.display = 'block';
-    oRev.classList.add('fade-in-up');
-    
-    gradeSec.style.opacity = '1';
-    gradeSec.style.pointerEvents = 'auto';
-    
-    const q = currentReviewSession[reviewIndex];
-    oRev.textContent = q.original;
+    const link = document.createElement('a');
+    link.download = `heart-whisper-card-${Date.now()}.png`;
+    link.href = dataUrl;
+    link.click();
+    showToast('🌸 高清圖卡已儲存到裝置！');
+  } catch (err) {
+    console.error('Export error:', err);
+    showToast('圖卡產生失敗，請重試');
   }
 }
 
-function checkClozeInput(el) {
-  // Strip punctuation for a more forgiving and low-friction comparison
-  const ans = el.getAttribute('data-answer').replace(/[^\w\u4e00-\u9fa5]/gi, '').toLowerCase();
-  const val = el.value.replace(/[^\w\u4e00-\u9fa5]/gi, '').toLowerCase();
-  
-  if (val && val === ans) {
-    if (!el.classList.contains('correct')) {
-      el.value = el.getAttribute('data-answer'); // Auto-format with correct casing/punctuation
-      el.parentNode.dataset.value = el.value; // Sync resizer
-      el.classList.add('correct');
-      el.readOnly = true; 
-      
-      // Haptic feedback for mobile devices
-      if (window.navigator && window.navigator.vibrate) {
-        window.navigator.vibrate(40);
-      }
-      
-      checkAllCorrect();
-    }
-  } else {
-    el.classList.remove('correct');
-  }
-}
-
-function checkAllCorrect() {
-  const inputs = document.querySelectorAll('.cloze-input');
-  const allCorrect = Array.from(inputs).every(el => el.classList.contains('correct'));
-  
-  if (allCorrect) {
-    // Short delay before showing final UI to let them enjoy the last 'pop' animation
-    setTimeout(() => {
-      toggleReveal();
-      showToast('太強了！完全正確 ✨');
-    }, 500);
-  }
-}
-
-function submitGrade(grade) {
-  const q = currentReviewSession[reviewIndex];
-  const now = new Date().getTime();
-  
-  // Calculate next interval based on grade
-  let nextIntervalHours = 24; // Default 1 day
-  if (grade === 'easy') nextIntervalHours = 72; // 3 days
-  if (grade === 'medium') nextIntervalHours = 24; // 1 day
-  if (grade === 'forgot') nextIntervalHours = 4; // Soon
-  
-  // Update DB quote
-  const dbIdx = quotesDb.findIndex(dbq => dbq.id === q.id);
-  if(dbIdx > -1) {
-    quotesDb[dbIdx].nextReviewDate = now + (nextIntervalHours * 60 * 60 * 1000);
-    quotesDb[dbIdx].history.push({ date: now, grade: grade });
-    localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
-    addSoulPoints(grade === 'easy' ? 2 : 1);
-  }
-  
-  // Show Encouragement
-  const encMsg = document.getElementById('encouragement-msg');
-  encMsg.textContent = aiService.generateEncouragement(grade);
-  encMsg.style.display = 'block';
-  encMsg.style.marginTop = '16px';
-  encMsg.style.padding = '12px';
-  encMsg.style.borderRadius = '12px';
-  encMsg.style.background = '#fdfaf6';
-  encMsg.style.color = '#76736e';
-  
-  document.getElementById('grade-section').style.opacity = '0.5';
-  document.getElementById('grade-section').style.pointerEvents = 'none';
-  
-  // Auto next slide after delay
-  setTimeout(() => {
-    reviewIndex++;
-    renderReviewCard();
-  }, 3500);
-}
-
-/* --- TTS Service (Web Speech API) --- */
-function playTTS(text) {
-  if (!('speechSynthesis' in window)) {
-    showToast('抱歉，你的瀏覽器不支援語音功能。');
-    return;
-  }
-  
-  // Stop existing speech
-  window.speechSynthesis.cancel();
-  
-  // 濾除會被朗讀出雜音的干擾標點與括號，保護聆聽心流
-  const cleanText = text.replace(/[<>＜＞\[\]【】()（）]/g, '');
-  
-  const msg = new SpeechSynthesisUtterance();
-  msg.text = cleanText;
-  msg.lang = 'zh-TW';
-  msg.rate = 0.8; // Gentle, slower rate for ADHD/anxiety calming
-  msg.pitch = 1.0;
-  
-  const voices = window.speechSynthesis.getVoices();
-  const zhVoice = voices.find(v => v.lang.includes('zh-TW') || v.lang.includes('zh-CN'));
-  if (zhVoice) msg.voice = zhVoice;
-  
-  window.speechSynthesis.speak(msg);
-}
-
-/* --- CHUNKING MODE (DEEP PRACTICE ROOM) --- */
-let currentPracticeSession = [];
-let practiceIndex = 0;
+/* --- Chunk mode stubs (kept for quiz compat) --- */
 let activeChunkQuote = null;
 let currentChunkIndex = 0;
-
-function startPracticeRoom() {
-  if (quotesDb.length === 0) {
-    showToast('你的金句庫還是空的喔！先去採集一句吧 ✨');
-    return;
-  }
-
-  const validQuotes = quotesDb.filter(q => q.focus_mode && q.focus_mode.chunked_quote && q.focus_mode.chunked_quote.length > 0);
-  
-  if (validQuotes.length === 0) {
-    showToast('目前沒有可供分段溫習的金句喔！');
-    return;
-  }
-  
-  // Randomly pick up to 5 quotes for deep practice
-  currentPracticeSession = validQuotes.sort(() => 0.5 - Math.random()).slice(0, 5);
-  practiceIndex = 0;
-  
-  switchView('view-chunking');
-  loadPracticeQuote();
-}
-
-function loadPracticeQuote() {
-  activeChunkQuote = currentPracticeSession[practiceIndex];
-  currentChunkIndex = 0;
-  renderChunkStage();
-}
-
-function exitChunkingMode() {
-  activeChunkQuote = null;
-  switchView('view-home');
-}
-
-function renderChunkStage() {
-  const chunks = activeChunkQuote.focus_mode.chunked_quote;
-  
-  // End of chunks check
-  if (currentChunkIndex >= chunks.length) {
-    practiceIndex++;
-    if (practiceIndex < currentPracticeSession.length) {
-      showToast('超棒！緊接著溫習下一句 ✨');
-      loadPracticeQuote();
-    } else {
-      showToast('🎉 今天的溫習已全部完成！心靈充電完畢');
-      exitChunkingMode();
-    }
-    return;
-  }
-  
-  document.getElementById('chunk-current').textContent = currentChunkIndex + 1;
-  document.getElementById('chunk-total').textContent = chunks.length;
-  
-  const chunkText = chunks[currentChunkIndex];
-  const displayEl = document.getElementById('chunk-text-display');
-  
-  displayEl.textContent = chunkText;
-  displayEl.classList.remove('text-blur');
-  
-  document.getElementById('chunk-instruction-text').textContent = '先慢慢讀過一次這段話';
-  
-  document.getElementById('chunk-state-show').style.display = 'flex';
-  document.getElementById('chunk-state-hide').style.display = 'none';
-  document.getElementById('chunk-state-reveal').style.display = 'none';
-  
-  document.getElementById('chunk-tts-btn').onclick = () => playTTS(chunkText);
-}
-
-function maskCurrentChunk() {
-  const displayEl = document.getElementById('chunk-text-display');
-  displayEl.classList.add('text-blur');
-  
-  document.getElementById('chunk-instruction-text').textContent = '現在，請在心裡試著把剛剛那句話默想出來';
-  
-  document.getElementById('chunk-state-show').style.display = 'none';
-  document.getElementById('chunk-state-hide').style.display = 'flex';
-}
-
-function revealCurrentChunk() {
-  const displayEl = document.getElementById('chunk-text-display');
-  displayEl.classList.remove('text-blur');
-  
-  document.getElementById('chunk-instruction-text').textContent = '跟你想的一樣嗎？';
-  
-  document.getElementById('chunk-state-hide').style.display = 'none';
-  document.getElementById('chunk-state-reveal').style.display = 'flex';
-  
-  // Check if this was the last chunk
-  const chunks = activeChunkQuote.focus_mode.chunked_quote;
-  const nextBtn = document.querySelector('#chunk-state-reveal .primary-btn');
-  if (currentChunkIndex >= chunks.length - 1) {
-    nextBtn.innerHTML = '太棒了！點此完成拼圖 <i class="ph-fill ph-puzzle-piece"></i>';
-  } else {
-    nextBtn.innerHTML = '接續：下一段 <i class="ph-bold ph-arrow-right"></i>';
-  }
-}
-
-function nextChunk() {
-  window.speechSynthesis.cancel();
-  currentChunkIndex++;
-  renderChunkStage();
-}
+let currentPracticeSession = [];
+let practiceIndex = 0;
+function startPracticeRoom() { showToast('此功能已升級為「金句圖卡製造機」'); }
+function exitChunkingMode() { switchView('view-home'); }
+function startDailyReview() { showToast('此功能已升級，請在金句庫中選擇金句製造圖卡'); }
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {
@@ -925,6 +717,7 @@ function renderLibrary(activeCategory) {
         <span style="display:flex; align-items:center; gap:6px;">${emotionEmoji} ${anchorDisplay}</span>
         <div style="display:flex; align-items:center; gap:4px;">
           <button class="icon-btn" onclick="playTTS('${q.original.replace(/'/g, "\\'")}')">🔊</button>
+          <button class="icon-btn" onclick="openCardBuilder('${q.id}')" title="製作鎖屏圖卡">🖼️</button>
           <button class="btn-delete-quote" title="刪除金句" onclick="deleteQuote('${q.id}')">🗑️</button>
         </div>
       </div>
@@ -986,7 +779,7 @@ async function submitMailbox() {
     let bibleHtml = '';
     if (result.bible_verses && result.bible_verses.length > 0) {
       const versesInner = result.bible_verses.map(function(v) {
-        return '<div class="bible-verse-item"><p class="bible-verse-text">' + v.text + '</p><span class="bible-verse-ref">── ' + v.ref + '</span></div>';
+        return '<div class="bible-verse-item" style="position:relative;"><p class="bible-verse-text">' + v.text + '</p><span class="bible-verse-ref">── ' + v.ref + '</span><button class="icon-btn" style="position:absolute; bottom:12px; right:12px; background:var(--bg-primary); padding:6px; border-radius:50%; box-shadow:0 2px 8px rgba(0,0,0,0.05);" onclick="saveScripture(\'' + v.ref + '\', \'' + v.text.replace(/'/g, "\\'") + '\')" title="收藏經文"><i class="ph-bold ph-bookmark-simple"></i></button></div>';
       }).join('');
       bibleHtml = '<div class="bible-section"><div class="bible-section-title">📖 來自聖經的回應</div>' + versesInner + '</div>';
     }
@@ -1127,27 +920,14 @@ function getCatClass(category) {
 
 function openGacha() {
   if (quotesDb.length === 0) {
-    switchView('view-gacha');
-    // Show beautiful empty state
-    document.getElementById('gacha-prompt-text').textContent = '';
-    document.getElementById('gacha-glow-container').style.display = 'none';
-    
-    const resultDiv = document.getElementById('gacha-result');
-    resultDiv.innerHTML = `
-      <div class="gacha-empty">
-        <div class="gacha-empty-icon"><i class="ph-fill ph-leaf"></i></div>
-        <div class="gacha-empty-text">籤筒裡還沒有籤喔<br>先去採集你的第一句金句吧</div>
-        <button class="primary-btn" onclick="switchView('view-add')">
-          <i class="ph-fill ph-sparkle"></i> 去採集第一句
-        </button>
-      </div>`;
-    resultDiv.classList.add('reveal');
+    showToast('籤筒裡還沒有籤喔，先去採集一句金句吧！');
+    switchView('view-add');
     return;
   }
   
   switchView('view-gacha');
   
-  // Initialize standard gacha structure if overridden by empty state previously
+  // Initialize standard gacha structure if missing
   const resultDiv = document.getElementById('gacha-result');
   if (!document.getElementById('gacha-card')) {
     resultDiv.innerHTML = `
@@ -1162,13 +942,36 @@ function openGacha() {
         <div class="gacha-card-anchor" id="gacha-anchor-display"></div>
         <div class="gacha-card-actions">
           <button class="gacha-action-btn" onclick="playGachaTTS()">🔊 朗讀</button>
-          <button class="gacha-action-btn primary" onclick="redrawGacha()">🎲 再抽</button>
-          <button class="gacha-action-btn share-btn" onclick="shareGachaCard()">📤 分享</button>
+          <button class="gacha-action-btn primary" onclick="redrawGacha()">🎲 再來一張</button>
+          <button class="gacha-action-btn share-btn" onclick="saveFortuneToday()">💫 珍藏</button>
         </div>
       </div>`;
   }
+
+  // Reset phases
+  document.getElementById('gacha-result').classList.remove('reveal');
+  document.getElementById('gacha-glow-container').style.display = 'none';
+  document.getElementById('gacha-emotion-picker').style.display = 'block';
+  document.getElementById('gacha-prompt-text').textContent = '深呼吸... 告訴我現在的心情？';
   
-  drawGacha(null);
+  // Render emotion grid
+  const grid = document.getElementById('gacha-emotion-grid');
+  if (grid) {
+    grid.innerHTML = '';
+    const allEmotions = Object.keys(EMOTION_VOCAB).filter(k => !k.startsWith('cat_'));
+    const shuffleArray = arr => arr.slice().sort(() => Math.random() - 0.5);
+    const selectedEmotions = shuffleArray(allEmotions).slice(0, 6);
+    selectedEmotions.forEach(emo => {
+      const btn = document.createElement('button');
+      btn.className = 'gacha-emo-btn';
+      btn.style = 'padding: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; color: #fff; cursor: pointer; transition: all 0.2s;';
+      btn.textContent = EMOTION_VOCAB[emo] ? EMOTION_VOCAB[emo].name : emo;
+      btn.onclick = () => drawGacha(emo);
+      grid.appendChild(btn);
+    });
+  }
+  
+  renderWeeklyFortuneLog();
 }
 
 
@@ -1184,6 +987,10 @@ function drawGacha(coreEmotion) {
   promptText.textContent = coreEmotion 
     ? `正在為感到「${dispName}」的你尋找力量...` 
     : '命運正在為你挑選那一句話...';
+    
+  // Hide Emotion Picker
+  const picker = document.getElementById('gacha-emotion-picker');
+  if (picker) picker.style.display = 'none';
   
   // Show glow animation
   const glowContainer = document.getElementById('gacha-glow-container');
@@ -1249,9 +1056,70 @@ function revealGachaCard(quote) {
 }
 
 function redrawGacha() {
-  // Re-draw with the same anchor
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   drawGacha(currentGachaAnchor);
+}
+
+let fortuneHistory = JSON.parse(localStorage.getItem('hw_fortune')) || [];
+
+function saveFortuneToday() {
+  if (!currentGachaQuote) return;
+  const today = new Date().toISOString().split('T')[0];
+  const existing = fortuneHistory.find(f => f.date === today);
+  
+  if (existing) {
+    if (existing.quoteId === currentGachaQuote.id) {
+      showToast('今日已經珍藏過這一籤囉 🙏');
+      return;
+    }
+    existing.quoteId = currentGachaQuote.id;
+    existing.quoteText = currentGachaQuote.original;
+  } else {
+    fortuneHistory.push({
+      id: Date.now(),
+      date: today,
+      quoteId: currentGachaQuote.id,
+      quoteText: currentGachaQuote.original
+    });
+  }
+  
+  localStorage.setItem('hw_fortune', JSON.stringify(fortuneHistory));
+  showToast('💫 已珍藏為今日籤詩');
+  renderWeeklyFortuneLog();
+}
+
+function renderWeeklyFortuneLog() {
+  const dotsContainer = document.getElementById('weekly-dots');
+  if (!dotsContainer) return;
+  
+  dotsContainer.innerHTML = '';
+  // Generate last 7 days
+  const today = new Date();
+  
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    
+    const record = fortuneHistory.find(f => f.date === dateStr);
+    const dot = document.createElement('div');
+    
+    if (record) {
+      dot.className = 'weekly-dot filled';
+      dot.title = record.quoteText;
+    } else {
+      dot.className = 'weekly-dot empty';
+    }
+    
+    dotsContainer.appendChild(dot);
+  }
+}
+
+function gachaToCardBuilder() {
+  if (!currentGachaQuote) return;
+  document.getElementById('builder-quote').value = currentGachaQuote.original;
+  document.getElementById('builder-author').value = currentGachaQuote.category ? (CATEGORY_MAP[currentGachaQuote.category]?.name || '小語') : '小語';
+  switchView('view-card-builder');
 }
 
 function playGachaTTS() {
@@ -1406,176 +1274,7 @@ async function shareGachaCard() {
   }
 }
 
-/* --- Omni Quiz Logic (Lightweight Multiple Choice) --- */
-let quizQuestions = [];
-let currentQuizIndex = 0;
-let isQuizAnimating = false;
-
-function startQuizMode() {
-  if (quotesDb.length < 3) {
-    showToast('需要至少收集 3 個金句，才能啟動測驗館喔！');
-    return;
-  }
-  
-  switchView('view-quiz');
-  document.getElementById('quiz-container').style.display = 'flex';
-  document.getElementById('quiz-complete').style.display = 'none';
-  
-  generateQuizSession();
-  currentQuizIndex = 0;
-  renderQuizQuestion();
-}
-
-function exitQuizMode() {
-  switchView('view-home');
-}
-
-function shuffleArray(arr) {
-  return arr.slice().sort(() => Math.random() - 0.5);
-}
-
-function getRandomDistractors(sourceArray, correctValue, count = 3) {
-  const uniqueItems = [...new Set(sourceArray)].filter(i => i && i !== correctValue && String(i).trim() !== '');
-  const shuffled = shuffleArray(uniqueItems);
-  
-  // Fallbacks if not enough unique data
-  const defaults = ['平靜', '愛自己', '無常', '接受', '勇敢開始', '專注當下', '深呼吸', '往前走'];
-  let distractors = shuffled.slice(0, count);
-  let trys = 0;
-  
-  while (distractors.length < count && trys < 20) {
-    const fallback = defaults[Math.floor(Math.random() * defaults.length)];
-    if (!distractors.includes(fallback) && fallback !== correctValue) {
-      distractors.push(fallback);
-    }
-    trys++;
-  }
-  return distractors;
-}
-
-function generateQuizSession() {
-  const sessionSize = Math.min(5, quotesDb.length);
-  const selectedQuotes = shuffleArray(quotesDb).slice(0, sessionSize);
-  
-  // Create pools for distractors
-  const allAnchors = quotesDb.map(q => q.user_anchor);
-  const allWords = quotesDb.flatMap(q => q.focus_mode?.cloze_points?.map(c => c.word) || []);
-  const allSeconds = quotesDb.map(q => {
-    const parts = q.original.split(/[，。；！]/);
-    return parts.length > 1 ? parts.slice(1).join('，') : q.original.substring(Math.floor(q.original.length/2));
-  });
-
-  quizQuestions = selectedQuotes.map(q => {
-    let type = ['A', 'B', 'C'][Math.floor(Math.random() * 3)];
-    let prompt, correct, distractors, hint;
-    
-    // Fallbacks if data missing
-    if (type === 'A' && (!q.focus_mode || !q.focus_mode.cloze_points || q.focus_mode.cloze_points.length === 0)) type = 'B';
-    if (type === 'C' && q.original.length < 8) type = 'B';
-    
-    if (type === 'A') {
-      hint = '【文字填空】找回失落的記憶碎片';
-      correct = q.focus_mode.cloze_points[0].word;
-      prompt = q.original.replace(correct, '<span class="quiz-cloze-blank" id="quiz-blank"></span>');
-      distractors = getRandomDistractors(allWords, correct, 3);
-    } else if (type === 'B') {
-      hint = '【情緒配對】這句話最適合接住哪種情緒？';
-      correct = q.user_anchor || '無法定義的心情';
-      prompt = q.original;
-      distractors = getRandomDistractors(allAnchors, correct, 3);
-    } else { // Type C
-      hint = '【接龍拼圖】這句話的下半部是？';
-      const parts = q.original.split(/[，。；！]/);
-      if (parts.length > 1 && parts[1].trim() !== '') {
-        prompt = parts[0] + '，...';
-        correct = parts.slice(1).join('，').trim() || parts[1].trim();
-      } else {
-        const mid = Math.floor(q.original.length/2);
-        prompt = q.original.substring(0, mid) + '...';
-        correct = q.original.substring(mid).trim();
-      }
-      distractors = getRandomDistractors(allSeconds, correct, 3);
-    }
-    
-    // Fallback if somehow distractors are empty, add dummy
-    if(distractors.length===0) distractors = ['選項 X', '選項 Y', '選項 Z'];
-    
-    const options = shuffleArray([correct, ...distractors]);
-    return { type, hint, prompt, correct, options, orgQuote: q };
-  });
-}
-
-function renderQuizQuestion() {
-  isQuizAnimating = false;
-  document.getElementById('quiz-current').textContent = currentQuizIndex + 1;
-  document.getElementById('quiz-total').textContent = quizQuestions.length;
-  
-  const qObj = quizQuestions[currentQuizIndex];
-  document.getElementById('quiz-hint-display').textContent = qObj.hint;
-  document.getElementById('quiz-prompt-display').innerHTML = qObj.prompt;
-  
-  const optionsGrid = document.getElementById('quiz-options-grid');
-  optionsGrid.innerHTML = '';
-  
-  qObj.options.forEach(opt => {
-    const btn = document.createElement('button');
-    btn.className = 'quiz-btn';
-    btn.textContent = opt;
-    btn.onclick = () => submitQuizAnswer(btn, opt, qObj);
-    optionsGrid.appendChild(btn);
-  });
-}
-
-function submitQuizAnswer(btn, chosenOpt, qObj) {
-  if (isQuizAnimating) return;
-  isQuizAnimating = true;
-  
-  if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(10);
-  
-  const isCorrect = (chosenOpt === qObj.correct);
-  
-  if (isCorrect) {
-    btn.classList.add('correct');
-    if (qObj.type === 'A') {
-      const blank = document.getElementById('quiz-blank');
-      if (blank) {
-        blank.textContent = chosenOpt;
-        blank.classList.add('filled');
-      }
-    }
-    
-    // Soft reward: delay next review smoothly
-    qObj.orgQuote.nextReviewDate = new Date().getTime() + (12 * 60 * 60 * 1000);
-    localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
-    
-    setTimeout(() => {
-      moveToNextQuiz();
-    }, 1200);
-  } else {
-    btn.classList.add('wrong');
-    setTimeout(() => {
-      isQuizAnimating = false;
-    }, 500); // Wait for shake anim
-  }
-}
-
-function moveToNextQuiz() {
-  currentQuizIndex++;
-  if (currentQuizIndex >= quizQuestions.length) {
-    // Show complete
-    document.getElementById('quiz-container').style.display = 'none';
-    document.getElementById('quiz-complete').style.display = 'block';
-    
-    // Simulate streak increment if this is their first big action today
-    if (localStorage.getItem('hw_streak') === null) {
-      localStorage.setItem('hw_streak', '1');
-    }
-    updateDashboard();
-  } else {
-    renderQuizQuestion();
-  }
-}
-
+/* --- Omni Quiz Logic (Removed) --- */
 /* --- Ambient Soundscapes (YouTube Player) --- */
 const ambientTracks = [
   { name: '🕊️ Palm tv', icon: 'ph-hands-praying', type: 'video', id: 'eUm8MeIp1LE' },
@@ -2073,7 +1772,7 @@ function renderMailboxHistory() {
     const dateStr = new Date(record.timestamp).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     let bibleHtml = '';
     if (record.bibleVerses && record.bibleVerses.length > 0) {
-      const versesInner = record.bibleVerses.map(v => '<div class="bible-verse-item"><p class="bible-verse-text">' + v.text + '</p><span class="bible-verse-ref">── ' + v.ref + '</span></div>').join('');
+      const versesInner = record.bibleVerses.map(v => '<div class="bible-verse-item" style="position:relative;"><p class="bible-verse-text">' + v.text + '</p><span class="bible-verse-ref">── ' + v.ref + '</span><button class="icon-btn" style="position:absolute; bottom:12px; right:12px; background:var(--bg-primary); padding:6px; border-radius:50%; box-shadow:0 2px 8px rgba(0,0,0,0.05);" onclick="event.stopPropagation(); saveScripture(\'' + v.ref + '\', \'' + v.text.replace(/'/g, "\\'") + '\')" title="收藏經文"><i class="ph-bold ph-bookmark-simple"></i></button></div>').join('');
       bibleHtml = '<div class="bible-section"><div class="bible-section-title">📖 來自聖經的回應</div>' + versesInner + '</div>';
     }
     
@@ -2295,4 +1994,130 @@ function updateLibraryFilters() {
   if(select.querySelector(`option[value="${currentVal}"]`)) {
     select.value = currentVal;
   }
+}
+
+/* --- Scripture Faith Space Logic --- */
+function openScriptureView() {
+  switchView('view-scripture');
+  switchScriptureTab('today');
+}
+
+function switchScriptureTab(tab) {
+  document.querySelectorAll('.metaphor-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('stab-' + tab).classList.add('active');
+  
+  if (tab === 'today') {
+    document.getElementById('sview-today').style.display = 'block';
+    document.getElementById('sview-library').style.display = 'none';
+    
+    // Automatically select a random verse from library or use default
+    const textEl = document.getElementById('scripture-today-text');
+    const refEl = document.getElementById('scripture-today-ref');
+    if (scriptureDb.length > 0) {
+      const q = scriptureDb[Math.floor(Math.random() * scriptureDb.length)];
+      textEl.textContent = q.text;
+      refEl.textContent = '── ' + q.ref;
+    } else {
+      textEl.textContent = '凡勞苦擔重擔的人可以到我這裡來，我就使你們得安息。';
+      refEl.textContent = '── 馬太福音 11:28';
+    }
+  } else {
+    document.getElementById('sview-today').style.display = 'none';
+    document.getElementById('sview-library').style.display = 'block';
+    renderScriptureLibrary();
+  }
+}
+
+function renderScriptureLibrary() {
+  const container = document.getElementById('scripture-library-grid');
+  const emptyState = document.getElementById('scripture-empty');
+  
+  if (scriptureDb.length === 0) {
+    container.style.display = 'none';
+    emptyState.style.display = 'block';
+    return;
+  }
+  
+  container.style.display = 'flex';
+  emptyState.style.display = 'none';
+  
+  let html = '';
+  [...scriptureDb].reverse().forEach(v => {
+    html += `
+      <div class="bible-verse-item" style="position:relative; background:var(--bg-primary); padding:16px 20px; border-radius:16px; border-left: 4px solid #c9a87c; box-shadow:0 4px 12px rgba(0,0,0,0.03);">
+        <p class="bible-verse-text" style="font-size:1.1rem; line-height:1.6; color:var(--text-dark); margin-bottom:12px;">${v.text}</p>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="bible-verse-ref" style="color:var(--text-secondary); font-size:0.9rem;">── ${v.ref}</span>
+          <div>
+            <button class="icon-btn" style="color:#d9534f;" onclick="deleteScripture(${v.id})" title="刪除經文"><i class="ph-bold ph-trash"></i></button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
+}
+
+function saveScripture(ref, text) {
+  if (!scriptureDb.find(s => s.ref === ref && s.text === text)) {
+    scriptureDb.push({ id: Date.now(), ref, text, timestamp: new Date().toISOString() });
+    localStorage.setItem('hw_scriptureDb', JSON.stringify(scriptureDb));
+    showToast('已收藏至靈修庫！');
+  } else {
+    showToast('這段經文已經在靈修庫囉！');
+  }
+}
+
+function deleteScripture(id) {
+  if (confirm('確定要從靈修庫移除這段經文嗎？')) {
+    scriptureDb = scriptureDb.filter(s => String(s.id) !== String(id));
+    localStorage.setItem('hw_scriptureDb', JSON.stringify(scriptureDb));
+    renderScriptureLibrary();
+    showToast('已移除經文');
+  }
+}
+
+function readScriptureAloud() {
+  const text = document.getElementById('scripture-today-text').textContent;
+  if ('speechSynthesis' in window) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'zh-TW';
+    utterance.rate = 0.8;
+    utterance.pitch = 0.9;
+    window.speechSynthesis.speak(utterance);
+  } else {
+    showToast('您的瀏覽器不支援語音朗讀功能');
+  }
+}
+
+let silenceTimerInterval = null;
+function startSilenceTimer() {
+  document.querySelector('#sview-today .scripture-actions').style.display = 'none';
+  const timerDisplay = document.getElementById('silence-timer');
+  timerDisplay.style.display = 'flex';
+  
+  let timeLeft = 30;
+  document.getElementById('silence-countdown').textContent = timeLeft;
+  
+  if (silenceTimerInterval) clearInterval(silenceTimerInterval);
+  silenceTimerInterval = setInterval(() => {
+    timeLeft--;
+    document.getElementById('silence-countdown').textContent = timeLeft;
+    
+    if (timeLeft <= 0) {
+      clearInterval(silenceTimerInterval);
+      timerDisplay.style.display = 'none';
+      document.querySelector('#sview-today .scripture-actions').style.display = 'flex';
+      showToast('默想結束，願神保守你的心。');
+      if (typeof addSoulPoints === 'function') addSoulPoints(1);
+    }
+  }, 1000);
+}
+
+function scriptureToCardBuilder() {
+  const text = document.getElementById('scripture-today-text').textContent;
+  const ref = document.getElementById('scripture-today-ref').textContent.replace('── ', '');
+  document.getElementById('builder-quote').value = text;
+  document.getElementById('builder-author').value = ref;
+  switchView('view-card-builder');
 }
