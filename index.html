@@ -66,27 +66,6 @@
         <!-- Section 1: 創作轉化 -->
         <div class="dashboard-section-title"><i class="ph-fill ph-palette"></i> 創作與輸出</div>
         
-        <div class="card review-card" onclick="openCardBuilderFromHome()">
-          <div class="card-icon"><i class="ph-fill ph-image"></i></div>
-          <div class="card-content">
-            <div class="card-title">金句圖卡製造機</div>
-            <div class="card-desc">將觸動你的話語，化為絕美的鎖屏或分享圖</div>
-          </div>
-          <div class="card-action"><i class="ph-bold ph-caret-right"></i></div>
-        </div>
-
-        <!-- Section 2: 靈修空間 -->
-        <div class="dashboard-section-title"><i class="ph-fill ph-cross"></i> 信仰默想</div>
-
-        <div class="card" onclick="openScriptureView()">
-          <div class="card-icon" style="background:linear-gradient(135deg,#e8d5b7,#c9a87c); color:#fff;"><i class="ph-fill ph-book-open-text"></i></div>
-          <div class="card-content">
-            <div class="card-title">信仰默想空間</div>
-            <div class="card-desc">今日默想 · 收藏從解憂信箕回響的經文</div>
-          </div>
-          <div class="card-action"><i class="ph-bold ph-caret-right"></i></div>
-        </div>
-
         <!-- Section 3: 情緒急救 -->
         <div class="dashboard-section-title"><i class="ph-fill ph-pill"></i> 情緒急救</div>
 
@@ -121,19 +100,6 @@
 
 
 
-        <!-- Stats Overview -->
-        <div class="dashboard-section-title">數據與解憂信箱</div>
-        <div class="stats-overview">
-          <div class="stat-item" style="flex:1;">
-            <div class="stat-num" id="stat-total">0</div>
-            <div class="stat-label">總金句</div>
-          </div>
-          <div class="stat-item mailbox-btn" onclick="openMailbox()">
-            <div style="font-size: 1.8rem; margin-bottom: 4px;">📝</div>
-            <div class="stat-label" style="font-size:1.05rem; font-weight:600; color:var(--text-dark);">解憂信箱</div>
-            <div style="font-size: 0.75rem; color:var(--text-secondary); margin-top:2px;">向金句庫傾訴</div>
-          </div>
-        </div>
         
         <!-- App Control -->
         <div style="margin-top: 24px; padding: 0;">
@@ -191,100 +157,6 @@
 
       <!-- ====================== -->
       <!-- VIEW: CARD BUILDER     -->
-      <!-- ====================== -->
-      <section class="view" id="view-card-builder">
-        <div class="view-header">
-          <button class="back-btn" onclick="switchView('view-library')"><i class="ph-bold ph-caret-left"></i> 退出排版</button>
-          <button class="primary-btn small" onclick="exportCard()"><i class="ph-bold ph-download-simple"></i> 儲存圖卡</button>
-        </div>
-
-        <div class="card-builder-workspace">
-          <!-- Preview Canvas -->
-          <div class="canvas-container" id="card-canvas-container">
-            <div class="card-canvas aesthetic-bg bg-theme-pearl font-default layout-vertical ratio-9-16" id="export-target">
-              <!-- Content -->
-              <div class="card-quote-content">
-                <!-- Text populated by JS -->
-                我們都在星溝裡，但總有人仰望星空。
-              </div>
-              <div class="card-metadata" id="card-metadata-box">
-                <span id="canvas-emotion-tag">🌙 焦慮的解藥</span>
-                <span class="app-watermark">心語漫遊 Heart Whisper</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Tools Panel -->
-          <div class="builder-tools">
-            <div class="tool-tabs">
-              <button class="tab-btn active" onclick="switchToolTab('font')">A 字型</button>
-              <button class="tab-btn" onclick="switchToolTab('bg')">🎨 背景</button>
-              <button class="tab-btn" onclick="switchToolTab('layout')">📐 排版</button>
-            </div>
-            
-            <div class="tool-panels">
-              <!-- Font Panel -->
-              <div class="tool-panel active" id="panel-font">
-                <div class="option-grid font-opts">
-                  <!-- JS dynamically loads fonts when clicked to prevent lag -->
-                  <button class="opt-btn" onclick="applyFont('font-chenyu', this)">辰宇落雁體</button>
-                  <button class="opt-btn" onclick="applyFont('font-iansui', this)">芫荽體</button>
-                  <button class="opt-btn" onclick="applyFont('font-seto', this)">瀨戶字體</button>
-                  <button class="opt-btn" onclick="applyFont('font-lxgw', this)">霞鶩文楷</button>
-                  <button class="opt-btn" onclick="applyFont('font-serif', this)">思源宋體</button>
-                  <button class="opt-btn" onclick="applyFont('font-twkai', this)">正楷體</button>
-                  <button class="opt-btn" onclick="applyFont('font-swei', this)">獅尾圓體</button>
-                  <button class="opt-btn active" onclick="applyFont('font-default', this)">思源黑體</button>
-                </div>
-              </div>
-
-              <!-- BG Panel -->
-              <div class="tool-panel" id="panel-bg" style="display:none;">
-                <div class="option-grid bg-opts">
-                  <button class="opt-btn active" onclick="applyBg('bg-theme-pearl', this)">珍珠晨露</button>
-                  <button class="opt-btn" onclick="applyBg('bg-theme-wabi-sabi', this)">侘寂石紋</button>
-                  <button class="opt-btn" onclick="applyBg('bg-theme-dusty-rose', this)">櫻花微塵</button>
-                  <button class="opt-btn" onclick="applyBg('bg-theme-moonlight', this)">月白霜降</button>
-                  <button class="opt-btn" onclick="applyBg('bg-theme-matcha', this)">抹茶拿鐵</button>
-                  <button class="opt-btn" onclick="applyBg('bg-theme-amber', this)">琥珀流光</button>
-                  <button class="opt-btn" onclick="applyBg('bg-theme-glass', this)">琉璃幻境</button>
-                  <button class="opt-btn" onclick="applyBg('bg-theme-ocean', this)">深海夜航</button>
-                  <button class="opt-btn" onclick="applyBg('bg-theme-midnight', this)">無月星空</button>
-                  <button class="opt-btn" onclick="applyBg('bg-theme-obsidian', this)">曜石純黑</button>
-                </div>
-              </div>
-
-              <!-- Layout Panel -->
-              <div class="tool-panel" id="panel-layout" style="display:none;">
-                <div class="option-list">
-                  <div class="layout-toggle">
-                    <span>排列方向</span>
-                    <div class="toggle-group">
-                      <button class="toggle-btn active layout-btn" onclick="applyLayoutDir('vertical', this)">直書</button>
-                      <button class="toggle-btn layout-btn" onclick="applyLayoutDir('horizontal', this)">橫書</button>
-                    </div>
-                  </div>
-                  <div class="layout-toggle">
-                    <span>畫布比例</span>
-                    <div class="toggle-group">
-                      <button class="toggle-btn active ratio-btn" onclick="applyRatio('ratio-9-16', this)">手機 9:16</button>
-                      <button class="toggle-btn ratio-btn" onclick="applyRatio('ratio-1-1', this)">IG 1:1</button>
-                    </div>
-                  </div>
-                  <div class="layout-toggle">
-                    <span>情緒與標籤顯示</span>
-                    <label class="switch">
-                       <input type="checkbox" id="toggle-meta-checkbox" checked onchange="toggleMetadata(this.checked)">
-                       <span class="slider round"></span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <!-- ====================== -->
       <!-- VIEW: LIBRARY          -->
       <!-- ====================== -->
@@ -368,118 +240,6 @@
 
       <!-- ====================== -->
       <!-- VIEW: MAILBOX          -->
-      <!-- ====================== -->
-      <section class="view" id="view-mailbox">
-        <div class="view-header" style="justify-content: space-between;">
-          <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0; color: var(--text-dark);">📝 解憂信箱</h2>
-          <button class="icon-btn" onclick="switchView('view-home')"><i class="ph-bold ph-x"></i></button>
-        </div>
-        
-        <div class="metaphor-tabs" style="margin-bottom: 16px;">
-          <button class="metaphor-tab active" id="mtab-mailbox-new" onclick="switchMailboxTab('new')">
-            <i class="ph-fill ph-envelope-simple-open"></i> 解憂信箱
-          </button>
-          <button class="metaphor-tab" id="mtab-mailbox-history" onclick="switchMailboxTab('history')">
-            <i class="ph-fill ph-clock-counter-clockwise"></i> 時光信件
-          </button>
-        </div>
-
-        <div id="mailbox-view-new">
-          <!-- Phase 1: Input -->
-          <div id="mailbox-phase-input" class="mailbox-phase active">
-            <p style="color: var(--text-primary); margin-bottom: 16px; line-height: 1.6;">遇到了什麼煩心事呢？寫下它，我們從你的收藏中找一句話送你...</p>
-            <div style="position:relative;">
-              <textarea id="mailbox-textarea" class="mailbox-textarea" placeholder="例如：最近因為一件小錯一直苛責自己..."></textarea>
-              <button class="mic-btn" id="mic-btn-mailbox" onclick="startVoiceInput('mailbox-textarea', 'mic-btn-mailbox')" title="語音輸入">
-                <i class="ph-fill ph-microphone"></i>
-              </button>
-            </div>
-            <button class="primary-btn" onclick="submitMailbox()" style="width:100%; margin-top: 16px;">
-              <i class="ph-fill ph-paper-plane-tilt"></i> 寄出專屬信件
-            </button>
-          </div>
-          
-          <!-- Phase 2: Loading State -->
-          <div id="mailbox-phase-loading" class="mailbox-phase">
-            <div class="glow-orb" id="mailbox-glow-orb"></div>
-            <p style="margin-top:32px; color:var(--text-secondary); font-size:0.95rem;">正在傾聽你的煩惱...<br>呼叫專屬陪談師</p>
-          </div>
-          
-          <!-- Phase 3: Result -->
-          <div id="mailbox-phase-result" class="mailbox-phase">
-            <div class="mailbox-result-card" id="mailbox-result-card" style="margin-bottom: 16px;">
-              <!-- Rendered via JS -->
-            </div>
-            <div style="display:flex; gap:12px;">
-              <button class="primary-btn" onclick="exportAsImage('mailbox-result-card')" style="flex:1; background:var(--bg-secondary); color:var(--text-primary); border:1px solid rgba(0,0,0,0.1);">
-                <i class="ph-fill ph-camera"></i> 存成圖卡
-              </button>
-              <button class="secondary-btn" onclick="resetMailbox()" style="flex:1;">
-                <i class="ph-bold ph-arrow-counter-clockwise"></i> 再寫一封
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div id="mailbox-view-history" style="display:none;">
-          <p class="view-subtitle" style="margin-bottom: 16px;">這裡收納著你過往每一次的傾訴，以及那些接住你的溫柔話語與經文。</p>
-          <div id="mailbox-history-container" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
-            <!-- Rendered via JS -->
-          </div>
-        </div>
-      </section>
-
-      <!-- ====================== -->
-      <!-- VIEW: SCRIPTURE         -->
-      <!-- ====================== -->
-      <section class="view" id="view-scripture">
-        <div class="view-header">
-          <button class="back-btn" onclick="switchView('view-home')"><i class="ph-bold ph-caret-left"></i> 返回</button>
-        </div>
-
-        <h2 class="view-title">信仰默想空間</h2>
-
-        <!-- Tabs -->
-        <div class="metaphor-tabs" style="margin-bottom:16px;">
-          <button class="metaphor-tab active" id="stab-today" onclick="switchScriptureTab('today')">
-            <i class="ph-fill ph-sun"></i> 今日默想
-          </button>
-          <button class="metaphor-tab" id="stab-library" onclick="switchScriptureTab('library')">
-            <i class="ph-fill ph-books"></i> 靈修庫
-          </button>
-        </div>
-
-        <!-- Today Contemplation -->
-        <div id="sview-today">
-          <div class="scripture-immersive" id="scripture-today-card">
-            <div class="scripture-cross-bg">✝</div>
-            <div class="scripture-text" id="scripture-today-text">正在深呼吸，選取經文...</div>
-            <div class="scripture-ref" id="scripture-today-ref"></div>
-          </div>
-          <div class="scripture-actions">
-            <button class="gacha-action-btn" onclick="readScriptureAloud()">🔊 朗讀默想</button>
-            <button class="gacha-action-btn primary" onclick="startSilenceTimer()">🧘 靜默 30 秒</button>
-            <button class="gacha-action-btn share-btn" onclick="scriptureToCardBuilder()">🖼️ 製作圖卡</button>
-          </div>
-          <!-- Silence timer -->
-          <div class="silence-timer" id="silence-timer" style="display:none;">
-            <div class="silence-orb" id="silence-orb"></div>
-            <div class="silence-countdown" id="silence-countdown">30</div>
-            <div class="silence-label">靜默中... 呼吸和緩地</div>
-          </div>
-        </div>
-
-        <!-- Scripture Library -->
-        <div id="sview-library" style="display:none;">
-          <div id="scripture-library-grid" style="display:flex; flex-direction:column; gap:12px;">
-            <!-- Cards rendered by JS -->
-          </div>
-          <div class="empty-state" id="scripture-empty" style="display:none;">
-            <i class="ph-fill ph-cross"></i>
-            <p>靈修庫還是空的。<br>去解憂信箱寄出您的煩惱，<br>收藏迴響您的經文吧。</p>
-          </div>
-        </div>
-      </section>
 
 
     </main>
@@ -511,18 +271,6 @@
           <button class="close-btn" onclick="closeSettings()"><i class="ph-bold ph-x"></i></button>
         </div>
         <div class="modal-body">
-          <div class="form-group">
-            <label for="gemini-key">Gemini API Key (主力) <i class="ph-bold ph-key"></i></label>
-            <p class="help-text">解憂信箱等功能會優先使用此金鑰。資料安全儲存於本機。</p>
-            <input type="password" id="gemini-key" class="modern-input" placeholder="AIzaSy..." />
-          </div>
-
-          <div class="form-group" style="margin-top: 16px;">
-            <label for="openrouter-key">OpenRouter API Key (備用) <i class="ph-bold ph-key"></i></label>
-            <p class="help-text">當 Gemini 無法使用時，將自動切換為 OpenRouter 的免費模型作為備用。</p>
-            <input type="password" id="openrouter-key" class="modern-input" placeholder="sk-or-v1-..." />
-          </div>
-          
           <div class="form-group" style="margin-top: 24px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 16px;">
             <label>資料備份與管理 <i class="ph-bold ph-database"></i></label>
             <p class="help-text">防止心血結晶遺失，建議將專屬金句匯出為本機檔案。若重新安裝或換設備，可上傳還原。</p>
@@ -668,8 +416,6 @@
 
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js"></script>
-  <script src="ai-service.js?v=1.3"></script>
   <script src="app.js?v=1.3"></script>
 </body>
 </html>
