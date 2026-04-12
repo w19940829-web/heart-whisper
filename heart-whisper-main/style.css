@@ -2,11 +2,16 @@
   /* Morandi / Calming Palette setup */
   --bg-primary: #fdfbf7;
   --bg-secondary: #f4f1ea;
+  --bg-card: #ffffff;
   --text-primary: #3d3b38;
   --text-secondary: #76736e;
+  --text-dark: #2c2a26;
   --accent-calm: #a3b1a6; /* Soft sage green */
   --accent-warm: #d4bda5; /* Soft earth tone */
+  --accent-gold: #d4a96a;
+  --border-color: rgba(0,0,0,0.06);
   --card-shadow: 0 4px 12px rgba(61, 59, 56, 0.05);
+  --header-bg: rgba(253, 251, 247, 0.9);
   
   --spacing-xs: 8px;
   --spacing-sm: 12px;
@@ -18,13 +23,18 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg-primary: #1c1a19;
-    --bg-secondary: #2a2826;
+    --bg-primary: #1a1816;
+    --bg-secondary: #262320;
+    --bg-card: #2e2b28;
     --text-primary: #eae5de;
     --text-secondary: #a39e98;
-    --accent-calm: #7d8f80; /* Darker sage */
-    --accent-warm: #a68d73; /* Darker earth */
-    --card-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    --text-dark: #eae5de;
+    --accent-calm: #8fa898;
+    --accent-warm: #c4a57e;
+    --accent-gold: #e0b87a;
+    --border-color: rgba(255,255,255,0.08);
+    --card-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --header-bg: rgba(26, 24, 22, 0.92);
   }
 }
 
@@ -65,7 +75,7 @@ body {
   align-items: center;
   position: sticky;
   top: 0;
-  background: rgba(253, 251, 247, 0.9);
+  background: var(--header-bg);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   z-index: 100;
@@ -220,7 +230,7 @@ body {
 
 .modern-textarea {
   width: 100%;
-  background: #ffffff;
+  background: var(--bg-primary);
   border: 1px solid var(--bg-secondary);
   border-radius: var(--radius-md);
   padding: 16px;
@@ -239,7 +249,7 @@ body {
 
 .modern-input {
   width: 100%;
-  background: #ffffff;
+  background: var(--bg-primary);
   border: 1px solid var(--bg-secondary);
   border-radius: 8px;
   padding: 12px;
@@ -1005,13 +1015,23 @@ body {
   padding-top: 20px;
   position: relative;
   overflow: hidden;
+  background-color: var(--text-dark); /* Deep deep brown/black #2c2a26 */
+  color: #fdfbf9;
+  min-height: 100vh;
+}
+
+#view-gacha .view-header .back-btn {
+  color: #e8c9a8; /* soft gold to contrast on dark */
+}
+#view-gacha .view-header .back-btn:hover {
+  background: rgba(255,255,255,0.1);
 }
 
 .gacha-prompt {
   font-family: 'Noto Serif TC', serif;
   font-size: 1.15rem;
   margin-bottom: 20px;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.85); /* Readability on dark */
   line-height: 1.6;
   transition: all 0.5s ease;
 }
@@ -1023,6 +1043,30 @@ body {
   justify-content: center;
   padding: 0 8px;
 }
+
+/* Base styles for dynamically injected emotion grid */
+.gacha-emotion-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+.gacha-emo-btn {
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  font-weight: 600;
+  font-size: 0.95rem;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.gacha-emo-btn:active { transform: scale(0.93); }
+.gacha-emo-btn:hover { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.4); }
 
 .gacha-emotion-chip {
   background: var(--bg-secondary);
@@ -1119,13 +1163,14 @@ body {
 }
 
 .gacha-card {
-  background: #fff;
+  background: #fdfbf9;
   border-radius: 20px;
   padding: 24px 20px;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.08), 0 2px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
   position: relative;
   overflow: hidden;
   text-align: left;
+  color: var(--text-dark); /* Explicitly making sure the text inside the physical card is dark so it's readable on the white card */
 }
 
 /* Category Color Strip */
@@ -2359,13 +2404,22 @@ body {
 .bible-verse-highlight { animation: verseFlash 1.8s ease-out; }
 @keyframes verseFlash { 0%,100% { background: transparent; } 20% { background: #fdf0d4; } }
 
-/* Font Buttons */
+/* Header Buttons */
 .bible-font-btn {
   background: var(--bg-secondary); border: 1px solid var(--border-color);
   border-radius: 6px; padding: 3px 8px; font-size: 0.8rem; cursor: pointer;
   color: var(--text-dark); margin-left: 4px;
 }
 .bible-font-btn:active { background: #f5e9d6; }
+.bible-top-check-btn {
+  background: var(--bg-secondary); border: 1px solid var(--border-color);
+  border-radius: 6px; padding: 3px 10px; font-size: 0.8rem; cursor: pointer;
+  color: var(--text-secondary); margin-left: 12px; font-weight: 600;
+  transition: all 0.2s; vertical-align: middle;
+}
+.bible-top-check-btn.read {
+  background: rgba(92, 184, 92, 0.1); border-color: rgba(92, 184, 92, 0.3); color: #5cb85c;
+}
 
 /* Chapter Nav Buttons (Inline) */
 .bible-chapter-nav-container {
@@ -2384,28 +2438,19 @@ body {
 .bible-chapter-nav-btn:hover { background: #f5e9d6; border-color: #d4a96a; color: #7a5c30; }
 .bible-chapter-nav-btn.prev { margin-right: auto; }
 .bible-chapter-nav-btn.next { margin-left: auto; }
-.bible-chapter-nav-btn.finish { background: transparent; border-color: transparent; font-weight: 400; color: var(--text-secondary); box-shadow: none; font-size: 0.85rem; }
-.bible-chapter-nav-btn.finish.read { color: #5cb85c; font-weight: 700; background: rgba(92, 184, 92, 0.08); border-color: rgba(92, 184, 92, 0.2); font-size: 0.95rem; }
 
-/* Floating Pill (Notes) */
+/* Side Notes FAB */
 .bible-floating-pill {
-  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  position: fixed; top: 50%; right: 16px; transform: translateY(-50%);
   background: rgba(255,255,255,0.92); border: 1.5px solid var(--border-color);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   z-index: 100; display: flex; align-items: center; justify-content: center;
-  font-size: 0.88rem; font-weight: 600; color: var(--text-secondary); cursor: pointer;
-  gap: 8px; padding: 12px 24px; border-radius: 30px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.08); transition: all 0.4s cubic-bezier(0.32,0.72,0,1);
-  white-space: nowrap; overflow: hidden;
+  color: var(--text-secondary); cursor: pointer;
+  width: 44px; height: 44px; border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: all 0.3s ease;
 }
-.bible-floating-pill.shrink {
-  bottom: 16px; padding: 12px; border-radius: 50%;
-  color: transparent; width: 44px; height: 44px; gap: 0;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05); transform: translateX(calc(50vw - 44px - 16px));
-}
-.bible-floating-pill.shrink i { color: var(--text-secondary); font-size: 1.1rem; }
-.bible-floating-pill:hover { background: rgba(245,233,214,0.95); border-color: #d4a96a; color: #7a5c30; }
-.bible-floating-pill.shrink:hover i { color: #7a5c30; }
+.bible-floating-pill i { font-size: 1.2rem; }
+.bible-floating-pill:hover { background: #f5e9d6; border-color: #d4a96a; color: #7a5c30; }
 
 /* Bottom Sheet */
 .bible-bottom-sheet {
@@ -2463,5 +2508,256 @@ body {
   transition: box-shadow 0.2s;
 }
 .daily-verse-preview-card:hover { box-shadow: 0 4px 16px rgba(212,169,106,0.2); }
-.dv-label { font-size: 0.72rem; font-weight: 700; color: #d4a96a; margin-bottom: 6px; letter-spacing: 0.5px; }
-.dv-text { font-size: 0.92rem; line-height: 1.6; color: #5a3e1b; font-family: 'Noto Serif TC', serif; }
+.dv-label { font-size: 0.72rem; font-weight: 700; color: var(--accent-gold); margin-bottom: 6px; letter-spacing: 0.5px; }
+.dv-text { font-size: 0.92rem; line-height: 1.6; color: var(--text-primary); font-family: 'Noto Serif TC', serif; }
+
+/* ============================================ */
+/* === HEATMAP (365-day Bible Reading Grid)  === */
+/* ============================================ */
+.heatmap-wrapper {
+  padding: 16px;
+  margin-bottom: 16px;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+.heatmap-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+.heatmap-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+.heatmap-cell {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  transition: background 0.2s;
+}
+.heatmap-cell.level-0 { background: var(--bg-secondary); }
+.heatmap-cell.level-1 { background: #c6e48b; }
+.heatmap-cell.level-2 { background: #7bc96f; }
+.heatmap-cell.level-3 { background: #239a3b; }
+.heatmap-cell.level-4 { background: #196127; }
+.heatmap-cell.today { outline: 2px solid var(--accent-gold); outline-offset: 1px; border-radius: 3px; }
+.heatmap-months {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+}
+.heatmap-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.heatmap-stats strong {
+  color: var(--accent-gold);
+}
+
+/* ============================================ */
+/* === BEAUTIFUL EMPTY STATES               === */
+/* ============================================ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
+  text-align: center;
+}
+.empty-state-icon {
+  font-size: 3.5rem;
+  margin-bottom: 16px;
+  filter: grayscale(0.3);
+  animation: emptyFloat 3s ease-in-out infinite;
+}
+@keyframes emptyFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.empty-state-text {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  max-width: 280px;
+}
+.empty-state-text strong {
+  color: var(--accent-gold);
+}
+
+/* ============================================ */
+/* === COMPREHENSIVE DARK MODE OVERRIDES    === */
+/* ============================================ */
+@media (prefers-color-scheme: dark) {
+  /* Cards and surfaces */
+  .modal-content,
+  .settings-panel,
+  .lib-card,
+  .soul-garden-container,
+  .quest-card {
+    background: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary);
+  }
+
+  /* All hardcoded #ffffff backgrounds */
+  .modern-textarea,
+  .modern-input,
+  .modal-content,
+  .note-input-area input {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+  }
+
+  /* Category cards in dark mode */
+  .cat-empathy, .cat-reframe, .cat-action,
+  .cat-compassion, .cat-faith, .cat-growth,
+  .cat-healing, .cat-spiritual, .cat-life {
+    background: var(--bg-card) !important;
+    border-left-color: var(--accent-calm) !important;
+  }
+
+  /* lib-badge on dark */
+  .lib-badge {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+  }
+
+  /* Toast on dark */
+  .toast.show {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+
+  /* Modal overlay */
+  .modal-overlay.active {
+    background: rgba(0,0,0,0.6);
+  }
+
+  /* Select/dropdown in Dark */
+  select {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+  }
+
+  /* Heatmap dark adjustments */
+  .heatmap-cell.level-0 { background: #2d2b28; }
+  .heatmap-cell.level-1 { background: #3d5c2f; }
+  .heatmap-cell.level-2 { background: #4a8c3f; }
+  .heatmap-cell.level-3 { background: #2a8035; }
+  .heatmap-cell.level-4 { background: #196127; }
+
+  /* Daily verse preview on dark */
+  .daily-verse-preview-card {
+    background: linear-gradient(135deg, #2a241c, #332b1f) !important;
+    border-color: var(--accent-gold) !important;
+  }
+
+  /* Bible book grid buttons on dark */
+  .bible-book-btn {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+  }
+
+  /* Quiz button on dark */
+  .quiz-btn {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+  }
+
+  /* Ambient widget on dark */
+  .ambient-widget .ambient-track-btn {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+  }
+}
+
+/* ============================================ */
+/* === TIMELINE JOURNAL STYLES              === */
+/* ============================================ */
+.timeline-container {
+  padding: 0 16px 40px;
+}
+.timeline-date-group {
+  margin-bottom: 28px;
+  position: relative;
+}
+.timeline-date-group::before {
+  content: '';
+  position: absolute;
+  left: 18px;
+  top: 36px;
+  bottom: 0;
+  width: 2px;
+  background: var(--border-color);
+}
+.timeline-date-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  padding: 8px 0 12px;
+  font-family: 'Noto Serif TC', serif;
+  letter-spacing: 0.5px;
+}
+.timeline-entry {
+  display: flex;
+  gap: 14px;
+  padding: 10px 0;
+  position: relative;
+}
+.timeline-dot {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: 50%;
+  flex-shrink: 0;
+  z-index: 1;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.timeline-body {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+.timeline-entry-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.timeline-entry-content {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-line;
+}
+
+/* Type-specific accent colors */
+.timeline-fortune .timeline-dot { border-color: #d4a96a; }
+.timeline-note .timeline-dot { border-color: #c4a3b1; }
+.timeline-bible .timeline-dot { border-color: #a3b1a6; }
+.timeline-streak .timeline-dot { border-color: #e88c30; }

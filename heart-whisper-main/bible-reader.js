@@ -12,6 +12,7 @@ const BIBLE_OT_COUNT = 39;
 let _bibleBottomSheetOpen = false;
 let _bibleBottomActiveTab = 'chapter'; // 'chapter' | 'recent'
 let _bibleNotesOverviewActive = false;
+let _bibleChapterStartTime = 0;
 
 /* ─── Storage Helpers ─────────────────────────────────────── */
 function getBibleNotes() { return JSON.parse(localStorage.getItem('hw_bible_notes') || '{}'); }
@@ -78,7 +79,6 @@ function _bibleShowPickerState(state) {
   const pill = document.getElementById('bible-floating-pill');
   if (pill) {
     pill.style.display = state === 'reader' ? 'flex' : 'none';
-    pill.classList.remove('shrink');
   }
 
   const backLabel = document.getElementById('bible-back-label');
@@ -92,9 +92,16 @@ function _bibleShowPickerState(state) {
     navInfo.textContent = bibleData[bibleCurrentBook].name;
   } else if (state === 'reader' && bibleCurrentBook >= 0 && bibleCurrentChapter >= 0) {
     backLabel.textContent = '章節';
+    
+    // Check if read
+    const readLog = getBibleReadLog();
+    const logKey = `${bibleCurrentBook}_${bibleCurrentChapter}`;
+    const isRead = !!readLog[logKey];
+    
     navInfo.innerHTML = `${bibleData[bibleCurrentBook].name} ${bibleCurrentChapter + 1} &nbsp;
       <button class="bible-font-btn" onclick="bibleFontChange(-1)">A－</button>
-      <button class="bible-font-btn" onclick="bibleFontChange(1)">A＋</button>`;
+      <button class="bible-font-btn" onclick="bibleFontChange(1)">A＋</button>
+      <button class="bible-top-check-btn ${isRead ? 'read' : ''}" id="bible-top-finish-btn" onclick="bibleMarkAsRead()">${isRead ? '✅ 已讀' : '🎯 打卡'}</button>`;
   }
 }
 
@@ -103,15 +110,36 @@ function _bibleRenderBookPicker() {
   if (!bibleData) return;
   _bibleNotesOverviewActive = false;
 
-  // Bookmark banner
+  // Bookmark and Streak banner
   const bm = getBibleBookmark();
+  const streak = getBibleStreak();
+  const count = streak.count || 0;
+  
   const banner = document.getElementById('bible-bookmark-banner');
-  if (bm && banner) {
+  if (banner) {
     banner.style.display = 'flex';
-    banner.innerHTML = `<span>📌 上次讀到：<b>${bm.bookName} 第${bm.chapterIdx + 1}章</b></span>
-      <button class="bible-continue-btn" onclick="_bibleSelectBook(${bm.bookIdx}); _bibleSelectChapter(${bm.chapterIdx});">繼續閱讀 →</button>`;
-  } else if (banner) {
-    banner.style.display = 'none';
+    banner.style.flexDirection = 'column';
+    banner.style.gap = '8px';
+    banner.style.alignItems = 'flex-start';
+    
+    let html = '';
+    
+    if (count > 0) {
+      html += `<div style="font-weight:700; color:#d4a96a; font-size:1.05rem;"><i class="ph-fill ph-fire"></i> 連續靈修讀經 ${count} 天</div>`;
+    }
+    
+    if (bm) {
+      html += `<div style="display:flex; width:100%; justify-content:space-between; align-items:center;">
+        <span>📌 上次讀到：<b>${bm.bookName} 第${bm.chapterIdx + 1}章</b></span>
+        <button class="bible-continue-btn" onclick="_bibleSelectBook(${bm.bookIdx}); _bibleSelectChapter(${bm.chapterIdx});">繼續閱讀 →</button>
+      </div>`;
+    }
+    
+    if (!count && !bm) {
+      banner.style.display = 'none';
+    } else {
+      banner.innerHTML = html;
+    }
   }
 
   // Book tabs header
@@ -145,6 +173,11 @@ function _bibleRenderBookPicker() {
   });
 
   _bibleShowPickerState('books');
+
+  // Render heatmap
+  if (typeof renderBibleHeatmap === 'function') {
+    renderBibleHeatmap('bible-heatmap-container');
+  }
 }
 
 /* ─── Chapter Picker ──────────────────────────────────────── */
@@ -225,22 +258,8 @@ function _bibleSelectChapter(chapterIdx) {
   _bibleShowPickerState('reader');
   document.getElementById('view-bible').scrollTop = 0;
 
-  // Save bookmark
-  saveBibleBookmark({ bookIdx: bibleCurrentBook, chapterIdx, bookName: book.name, savedAt: Date.now() });
-
-  // Set finish button state
-  const readLog = getBibleReadLog();
-  const logKey = `${bibleCurrentBook}_${chapterIdx}`;
-  const finishBtn = document.getElementById('bible-finish-btn');
-  if (finishBtn) {
-    if (readLog[logKey]) {
-      finishBtn.classList.add('read');
-      finishBtn.textContent = '✅ 已讀';
-    } else {
-      finishBtn.classList.remove('read');
-      finishBtn.textContent = '📖 標記完讀';
-    }
-  }
+  // Set start time for smart tracking
+  _bibleChapterStartTime = Date.now();
 
   // Init swipe
   _initBibleSwipe();
@@ -251,7 +270,9 @@ function _bibleSelectChapter(chapterIdx) {
 
 /* ─── Chapter Navigation (Prev/Next) ─────────────────────── */
 function bibleGoPrevChapter() {
-  if (bibleCurrentChapter > 0) _bibleSelectChapter(bibleCurrentChapter - 1);
+  if (bibleCurrentChapter > 0) {
+    _bibleSelectChapter(bibleCurrentChapter - 1);
+  }
 }
 
 function bibleGoNextChapter() {
@@ -269,13 +290,16 @@ function bibleMarkAsRead() {
     readLog[logKey] = true;
     saveBibleReadLog(readLog);
     _updateBibleStreak();
-    showToast('✅ 讀經進度已記錄！');
-    const finishBtn = document.getElementById('bible-finish-btn');
-    if (finishBtn) {
-      finishBtn.classList.add('read');
-      finishBtn.textContent = '✅ 已讀';
+    
+    // Optional celebration effect
+    const streak = getBibleStreak();
+    showToast(`✨ 太棒了！您已達成連續 ${streak.count} 天靈修！讀經進度已記錄！`);
+    
+    const topBtn = document.getElementById('bible-top-finish-btn');
+    if (topBtn) {
+      topBtn.classList.add('read');
+      topBtn.textContent = '✅ 已讀';
     }
-    // Update book picker if it were to render, but it re-renders on back anyway
   }
 }
 
@@ -297,19 +321,9 @@ function _initBibleSwipe() {
 
 function _initBibleScroll() {
   const el = document.getElementById('view-bible');
-  const pill = document.getElementById('bible-floating-pill');
-  if (!el || !pill || el._scrollInited) return;
+  if (!el || el._scrollInited) return;
   el._scrollInited = true;
-  let lastY = el.scrollTop;
-  el.addEventListener('scroll', () => {
-    const currentY = el.scrollTop;
-    if (currentY > lastY + 10 && currentY > 50) {
-      if (!pill.classList.contains('shrink')) pill.classList.add('shrink');
-    } else if (currentY < lastY - 10 || currentY <= 20) {
-      if (pill.classList.contains('shrink')) pill.classList.remove('shrink');
-    }
-    lastY = currentY;
-  }, { passive: true });
+  // Previously we handled pill shrink here, now pill is a fixed Side FAB.
 }
 
 /* ─── Font Size ───────────────────────────────────────────── */
@@ -413,10 +427,11 @@ function _updateBottomBar() {
   const chapterNoteCount = bibleCurrentBook >= 0 && bibleCurrentChapter >= 0
     ? Object.keys(notes).filter(k => k.startsWith(`${bibleData[bibleCurrentBook].name}_${bibleCurrentChapter}_`)).length
     : 0;
-  const totalCount = Object.keys(notes).length;
   
-  pill.innerHTML = `<i class="ph-bold ph-note-pencil"></i>
-    ${chapterNoteCount > 0 ? `本章 ${chapterNoteCount} 則筆記` : (totalCount > 0 ? `共 ${totalCount} 則筆記` : '點擊記筆記')}`;
+  pill.innerHTML = `<i class="ph-bold ph-note-pencil"></i>`;
+  if (chapterNoteCount > 0) {
+    pill.innerHTML += `<div style="position:absolute; top:-4px; right:-4px; background:#e57373; color:white; font-size:0.6rem; border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-weight:bold;">${chapterNoteCount}</div>`;
+  }
 }
 
 function toggleBibleBottomSheet() {

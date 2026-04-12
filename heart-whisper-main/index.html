@@ -15,7 +15,10 @@
   <!-- Google Fonts: Inter & Noto Serif TC for elegant typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Serif+TC:wght@400;600;700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+  <!-- Open Source Handwriting Fonts: LXGW WenKai & ChenYuluoyan -->
+  <link href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-tc-webfont@1.7.0/style.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/gh/max32002/ChenYuluoyan-Thin-Monospaced@1/WebFont/ChenYuluoyan-Thin.css" rel="stylesheet">
   <!-- Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   <!-- html2canvas for share feature -->
@@ -113,7 +116,16 @@
           <div class="dv-text"></div>
         </div>
 
-
+        <!-- Section: 靈魂日記 -->
+        <div class="dashboard-section-title"><i class="ph-fill ph-notebook"></i> 靈魂日記</div>
+        <div class="card" onclick="openTimeline()">
+          <div class="card-icon" style="background:linear-gradient(135deg,#c4a3b1,#a67a8e); color:#fff;"><i class="ph-fill ph-clock-countdown"></i></div>
+          <div class="card-content">
+            <div class="card-title">時間軸日記</div>
+            <div class="card-desc">回顧你的靈修足跡與心境變化</div>
+          </div>
+          <div class="card-action"><i class="ph-bold ph-caret-right"></i></div>
+        </div>
 
         
         <!-- App Control -->
@@ -122,6 +134,19 @@
             <i class="ph-bold ph-arrows-clockwise"></i> 強制更新 APP 版本
           </button>
           <p style="font-size: 0.72rem; color: var(--text-secondary); text-align: center; margin-top: 8px;">當畫面卡在舊版時，點擊直接抓取雲端最新版</p>
+        </div>
+      </section>
+
+      <!-- ====================== -->
+      <!-- VIEW: TIMELINE JOURNAL  -->
+      <!-- ====================== -->
+      <section class="view" id="view-timeline">
+        <div class="view-header">
+          <button class="back-btn" onclick="switchView('view-home')"><i class="ph-bold ph-caret-left"></i> 返回</button>
+          <div style="font-weight:600; font-size:1rem;">📔 靈魂日記</div>
+        </div>
+        <div id="timeline-container" class="timeline-container">
+          <!-- Rendered by JS -->
         </div>
       </section>
 
@@ -139,6 +164,9 @@
           <!-- Bookmark banner -->
           <div id="bible-bookmark-banner" class="bible-bookmark-banner" style="display:none;"></div>
 
+          <!-- 年度讀經熱力圖 -->
+          <div id="bible-heatmap-container"></div>
+
           <!-- Search Bar -->
           <div class="bible-search-bar">
             <input type="search" id="bible-search-input" class="bible-search-input" placeholder="🔍 搜尋全書關鍵字..." oninput="if(!this.value)document.getElementById('bible-search-results').innerHTML=''" onkeydown="if(event.key==='Enter')bibleSearch()">
@@ -147,7 +175,7 @@
           <div id="bible-search-results" class="bible-search-results"></div>
 
           <!-- Picker Tabs -->
-          <div class="bible-picker-tabs">
+          <div class="bible-picker-tabs" style="display: none;">
             <button class="bible-picker-tab active" id="bible-picker-tab-books" onclick="bibleShowBookPicker()">📖 書卷選擇</button>
             <button class="bible-picker-tab" id="bible-picker-tab-notes" onclick="bibleShowNotesOverview()">📓 我的筆記</button>
           </div>
@@ -181,10 +209,9 @@
             <div class="bible-chapter-heading" id="bible-reader-heading"></div>
             <div id="bible-verse-list" class="bible-verse-list"></div>
             
-            <!-- Chapter Nav Buttons (Inline at end of chapter) -->
+            <!-- Chapter Nav Buttons -->
             <div class="bible-chapter-nav-container">
               <button class="bible-chapter-nav-btn prev" id="bible-prev-btn" onclick="bibleGoPrevChapter()" style="display:none;">‹ 上一章</button>
-              <button class="bible-chapter-nav-btn finish" id="bible-finish-btn" onclick="bibleMarkAsRead()" style="margin: 0 auto; min-width: 100px; justify-content: center;">📖 標記完讀</button>
               <button class="bible-chapter-nav-btn next" id="bible-next-btn" onclick="bibleGoNextChapter()" style="display:none;">下一章 ›</button>
             </div>
           </div>
@@ -514,7 +541,22 @@
 
   </div>
 
-  <script src="app.js?v=1.4"></script>
-  <script src="bible-reader.js?v=1.0"></script>
+  <!-- V2 Modular JS -->
+  <script src="js/storage.js?v=2.0"></script>
+  <script src="js/audio.js?v=2.0"></script>
+  <script src="js/library.js?v=2.0"></script>
+  <script src="js/gacha.js?v=2.0"></script>
+  <script src="js/heatmap.js?v=2.0"></script>
+  <script src="app.js?v=2.0"></script>
+  <script src="bible-reader.js?v=2.0"></script>
+  
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+          .catch(err => console.error('SW registration failed:', err));
+      });
+    }
+  </script>
 </body>
 </html>
