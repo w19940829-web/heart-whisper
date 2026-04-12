@@ -63,8 +63,7 @@
           </div>
         </div>
 
-        <!-- Section 1: 創作轉化 -->
-        <div class="dashboard-section-title"><i class="ph-fill ph-palette"></i> 創作與輸出</div>
+
         
         <!-- Section 3: 情緒急救 -->
         <div class="dashboard-section-title"><i class="ph-fill ph-pill"></i> 情緒急救</div>
@@ -98,6 +97,22 @@
           <div class="card-action"><i class="ph-bold ph-caret-right"></i></div>
         </div>
 
+        <!-- Section: 讀經 -->
+        <div class="dashboard-section-title"><i class="ph-fill ph-book-open-text"></i> 讀經默想 <span id="bible-streak-display" class="streak-badge" style="display:none;"></span></div>
+        <div class="card" onclick="openBible()">
+          <div class="card-icon" style="background:linear-gradient(135deg,#d4a96a,#b8844a); color:#fff;"><i class="ph-fill ph-book-open-text"></i></div>
+          <div class="card-content">
+            <div class="card-title">聖經閱讀</div>
+            <div class="card-desc">新標點和合本（神版）· 全書66卷離線實用</div>
+          </div>
+          <div class="card-action"><i class="ph-bold ph-caret-right"></i></div>
+        </div>
+        <!-- Daily Verse Preview -->
+        <div class="daily-verse-preview-card" id="daily-verse-preview" style="display:none;" onclick="openBible()">
+          <div class="dv-label">📖 今日經文</div>
+          <div class="dv-text"></div>
+        </div>
+
 
 
         
@@ -111,8 +126,89 @@
       </section>
 
       <!-- ====================== -->
-      <!-- VIEW: ADD NEW QUOTE    -->
+      <!-- VIEW: BIBLE READER      -->
       <!-- ====================== -->
+      <section class="view" id="view-bible">
+        <div class="view-header">
+          <button class="back-btn" id="bible-back-btn" onclick="bibileNavBack()"><i class="ph-bold ph-caret-left"></i> <span id="bible-back-label">返回</span></button>
+          <div class="bible-nav-info" id="bible-nav-info"></div>
+        </div>
+
+        <!-- Book Picker -->
+        <div id="bible-book-picker" class="bible-book-picker">
+          <!-- Bookmark banner -->
+          <div id="bible-bookmark-banner" class="bible-bookmark-banner" style="display:none;"></div>
+
+          <!-- Search Bar -->
+          <div class="bible-search-bar">
+            <input type="search" id="bible-search-input" class="bible-search-input" placeholder="🔍 搜尋全書關鍵字..." oninput="if(!this.value)document.getElementById('bible-search-results').innerHTML=''" onkeydown="if(event.key==='Enter')bibleSearch()">
+            <button class="bible-search-btn" onclick="bibleSearch()">搜尋</button>
+          </div>
+          <div id="bible-search-results" class="bible-search-results"></div>
+
+          <!-- Picker Tabs -->
+          <div class="bible-picker-tabs">
+            <button class="bible-picker-tab active" id="bible-picker-tab-books" onclick="bibleShowBookPicker()">📖 書卷選擇</button>
+            <button class="bible-picker-tab" id="bible-picker-tab-notes" onclick="bibleShowNotesOverview()">📓 我的筆記</button>
+          </div>
+
+          <!-- Book Lists -->
+          <div id="bible-book-lists">
+            <div class="bible-testament-label">📖 舊約 (39卷)</div>
+            <div class="bible-book-grid" id="bible-ot-grid"></div>
+            <div class="bible-testament-label" style="margin-top:24px;">✨ 新約 (27卷)</div>
+            <div class="bible-book-grid" id="bible-nt-grid"></div>
+          </div>
+
+          <!-- Notes Overview -->
+          <div id="bible-notes-overview" style="display:none;">
+            <div class="bible-notes-search-wrap">
+              <input type="search" id="bible-notes-search" class="bible-search-input" placeholder="搜尋筆記內容..." oninput="bibleFilterNotes()">
+            </div>
+            <div id="bible-notes-overview-list"></div>
+          </div>
+        </div>
+
+        <!-- Chapter Picker -->
+        <div id="bible-chapter-picker" class="bible-chapter-picker" style="display:none;">
+          <h2 class="view-title" id="bible-chapter-title"></h2>
+          <div class="bible-chapter-grid" id="bible-chapter-grid"></div>
+        </div>
+
+        <!-- Reader -->
+        <div id="bible-reader" style="display:none; padding-bottom: 80px;">
+          <div class="bible-reader-canvas">
+            <div class="bible-chapter-heading" id="bible-reader-heading"></div>
+            <div id="bible-verse-list" class="bible-verse-list"></div>
+          </div>
+          <!-- Chapter Nav Buttons -->
+          <button class="bible-chapter-nav-btn prev" id="bible-prev-btn" onclick="bibleGoPrevChapter()" style="display:none;">‹ 上一章</button>
+          <button class="bible-chapter-nav-btn next" id="bible-next-btn" onclick="bibleGoNextChapter()" style="display:none;">下一章 ›</button>
+        </div>
+
+        <!-- Loading -->
+        <div id="bible-loading" style="display:none; text-align:center; padding:60px 0;">
+          <div class="glow-orb" style="margin:0 auto 20px;"></div>
+          <p style="color:var(--text-secondary);">正在載入聖經全書...<br><small>首次載入需幾秒鐘</small></p>
+        </div>
+
+        <!-- Bottom Sheet Overlay -->
+        <div id="bible-sheet-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:199;" onclick="_closeBibleBottomSheet()"></div>
+
+        <!-- Bottom Bar (shown during reading) -->
+        <div id="bible-bottom-bar" class="bible-bottom-bar" style="display:none;" onclick="toggleBibleBottomSheet()"></div>
+
+        <!-- Bottom Sheet -->
+        <div id="bible-bottom-sheet" class="bible-bottom-sheet">
+          <div class="bible-bottom-sheet-handle"></div>
+          <div class="bottom-sheet-tabs">
+            <button class="bottom-sheet-tab active" id="btab-chapter" onclick="switchBottomTab('chapter')">📝 本章筆記</button>
+            <button class="bottom-sheet-tab" id="btab-recent" onclick="switchBottomTab('recent')">🕐 最近筆記</button>
+          </div>
+          <div id="bottom-sheet-content" class="bottom-sheet-content"></div>
+        </div>
+      </section>
+
       <section class="view" id="view-add">
         <div class="view-header">
           <button class="back-btn" onclick="switchView('view-home')"><i class="ph-bold ph-caret-left"></i> 隨時返回</button>
@@ -222,10 +318,7 @@
               <button class="gacha-action-btn primary" onclick="redrawGacha()">🎲 再來一張</button>
               <button class="gacha-action-btn share-btn" onclick="saveFortuneToday()">💫 珍藏</button>
             </div>
-            <!-- Quick jump to card builder -->
-            <button class="gacha-card-builder-btn" onclick="gachaToCardBuilder()">
-              <i class="ph-fill ph-image"></i> 製作圖卡
-            </button>
+
           </div>
         </div>
 
@@ -416,6 +509,7 @@
 
   </div>
 
-  <script src="app.js?v=1.3"></script>
+  <script src="app.js?v=1.4"></script>
+  <script src="bible-reader.js?v=1.0"></script>
 </body>
 </html>

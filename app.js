@@ -151,10 +151,30 @@ function updateDashboard() {
   // Calculate due for today
   const now = new Date().getTime();
   const dueQuotes = quotesDb.filter(q => q.nextReviewDate <= now);
-  document.getElementById('due-count').textContent = dueQuotes.length;
+  const dueEl = document.getElementById('due-count');
+  if (dueEl) dueEl.textContent = dueQuotes.length;
   
   // Update Soul Garden
   updateSoulGarden();
+
+  // 2-B: Reading streak
+  const streakEl = document.getElementById('bible-streak-display');
+  if (streakEl) {
+    const count = typeof getBibleStreakCount === 'function' ? getBibleStreakCount() : 0;
+    streakEl.textContent = count > 0 ? `🔥 連續 ${count} 天` : '';
+    streakEl.style.display = count > 0 ? 'inline' : 'none';
+  }
+
+  // 2-A: Daily verse
+  const dvEl = document.getElementById('daily-verse-preview');
+  if (dvEl && typeof getDailyVerseForHome === 'function') {
+    const dv = getDailyVerseForHome();
+    if (dv) {
+      dvEl.style.display = 'block';
+      const preview = dv.text.length > 30 ? dv.text.substring(0, 30) + '...' : dv.text;
+      dvEl.querySelector('.dv-text').textContent = `「${preview}」`;
+    }
+  }
 }
 
 let toastQueue = [];
@@ -472,9 +492,15 @@ function renderLibrary(activeCategory) {
   
   // Render Cards
   gridContainer.innerHTML = '';
-  let filteredQuotes = (!activeCategory || activeCategory === '全部') 
-    ? [...quotesDb].reverse() 
-    : quotesDb.filter(q => (q.category || '').includes(activeCategory)).reverse();
+  // Phase 3-B: Bible filter
+  let filteredQuotes;
+  if (activeCategory === '📖 聖經') {
+    filteredQuotes = [...quotesDb].filter(q => q.category === 'cat_faith' && q.original.includes('（') && q.original.includes('）')).reverse();
+  } else if (!activeCategory || activeCategory === '全部') {
+    filteredQuotes = [...quotesDb].reverse();
+  } else {
+    filteredQuotes = quotesDb.filter(q => (q.category || '').includes(activeCategory)).reverse();
+  }
     
   if (searchInput && searchInput.value.trim() !== '') {
     const term = searchInput.value.trim().toLowerCase();
@@ -545,7 +571,6 @@ function renderLibrary(activeCategory) {
         <span style="display:flex; align-items:center; gap:6px;">${emotionEmoji} ${anchorDisplay}</span>
         <div style="display:flex; align-items:center; gap:4px;">
           <button class="icon-btn" onclick="playTTS('${q.original.replace(/'/g, "\\'")}')">🔊</button>
-          <button class="icon-btn" onclick="openCardBuilder('${q.id}')" title="製作鎖屏圖卡">🖼️</button>
           <button class="btn-delete-quote" title="刪除金句" onclick="deleteQuote('${q.id}')">🗑️</button>
         </div>
       </div>
@@ -625,6 +650,7 @@ function prevSlide() {
 // 4. Gacha (Companion Card) — Enhanced
 let currentGachaQuote = null;
 let currentGachaAnchor = null;
+let currentGachaIsScripture = false;
 
 // Emoji map for common anchors
 const anchorEmojiMap = {
@@ -752,10 +778,19 @@ function drawGacha(coreEmotion) {
   glowOrb.className = 'gacha-glow-orb'; // reset animation
   
   // Filter by core emotion or all if null
-  const filtered = coreEmotion 
-    ? quotesDb.filter(q => getQuoteEmotion(q) === coreEmotion) 
-    : quotesDb;
-  
+  // Phase 3-A: 20% chance to draw from Bible faith quotes
+  const faithQuotes = quotesDb.filter(q => q.category === 'cat_faith' && q.original.includes('──'));
+  const useBible = faithQuotes.length > 0 && Math.random() < 0.2;
+
+  let filtered;
+  if (useBible) {
+    filtered = faithQuotes;
+  } else {
+    filtered = coreEmotion
+      ? quotesDb.filter(q => getQuoteEmotion(q) === coreEmotion && !(q.category === 'cat_faith' && q.original.includes('──')))
+      : quotesDb.filter(q => !(q.category === 'cat_faith' && q.original.includes('──')));
+  }
+
   if (filtered.length === 0) {
     showToast('居然找不到這類金句，幫你隨機抽一張囉！');
     return drawGacha(null);
@@ -763,6 +798,8 @@ function drawGacha(coreEmotion) {
 
   const randomMsg = filtered[Math.floor(Math.random() * filtered.length)];
   currentGachaQuote = randomMsg;
+  // Mark as scripture draw for card display
+  currentGachaIsScripture = useBible;
   
   // Phase 1: Glow (1.8s) → Phase 2: Burst → Phase 3: Reveal card
   setTimeout(() => {
