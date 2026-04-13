@@ -9,7 +9,6 @@ let bibleData = null;
 let bibleCurrentBook = -1;
 let bibleCurrentChapter = -1;
 const BIBLE_OT_COUNT = 39;
-let _bibleBottomSheetOpen = false;
 let _bibleBottomActiveTab = 'chapter'; // 'chapter' | 'recent'
 let _bibleNotesOverviewActive = false;
 let _bibleChapterStartTime = 0;
@@ -31,7 +30,6 @@ function _bibleKey(b, c, v) { return `${bibleData[b].name}_${c}_${v}`; }
 /* ─── Main Entry ──────────────────────────────────────────── */
 async function openBible() {
   switchView('view-bible');
-  _closeBibleBottomSheet();
   if (!bibleData) {
     document.getElementById('bible-loading').style.display = 'block';
     document.getElementById('bible-book-picker').style.display = 'none';
@@ -58,7 +56,7 @@ async function openBible() {
 
 /* ─── Navigation ──────────────────────────────────────────── */
 function bibileNavBack() {
-  if (_bibleBottomSheetOpen) { _closeBibleBottomSheet(); return; }
+
   if (document.getElementById('bible-reader').style.display !== 'none') {
     bibleCurrentChapter = -1;
     _bibleShowPickerState('chapters');
@@ -76,6 +74,17 @@ function _bibleShowPickerState(state) {
   document.getElementById('bible-reader').style.display = state === 'reader' ? 'block' : 'none';
   document.getElementById('bible-loading').style.display = 'none';
 
+  const backLabel = document.getElementById('bible-back-label');
+  const navInfo = document.getElementById('bible-nav-info');
+
+  if (state === 'books') {
+    backLabel.textContent = '返回';
+    navInfo.innerHTML = '';
+  } else if (state === 'chapters' && bibleCurrentBook >= 0) {
+    backLabel.textContent = '書卷';
+    navInfo.textContent = bibleData[bibleCurrentBook].name;
+  } else if (state === 'reader' && bibleCurrentBook >= 0 && bibleCurrentChapter >= 0) {
+    backLabel.textContent = '章節';
     navInfo.innerHTML = `${bibleData[bibleCurrentBook].name} ${bibleCurrentChapter + 1} &nbsp;
       <button class="bible-font-btn" onclick="bibleFontChange(-1)">A－</button>
       <button class="bible-font-btn" onclick="bibleFontChange(1)">A＋</button>`;
@@ -369,7 +378,6 @@ function bibleSaveNote(verseIdx) {
   }
   card.textContent = text;
   bibleCloseNoteInput(verseIdx);
-  _updateBottomBar();
   showToast('📝 筆記已儲存');
 }
 
@@ -383,7 +391,6 @@ function bibleDeleteNote(verseIdx) {
   const dot = document.querySelector(`#verse-row-${verseIdx} .bible-note-dot`);
   if (dot) dot.remove();
   bibleCloseNoteInput(verseIdx);
-  _updateBottomBar();
   showToast('筆記已刪除');
 }
 
@@ -461,7 +468,6 @@ function renderBottomSheetNotes(tab) {
 }
 
 function bibleJumpToVerse(bookIdx, chapterIdx, verseIdx) {
-  _closeBibleBottomSheet();
   // Navigate if needed
   const needNav = bookIdx !== bibleCurrentBook || chapterIdx !== bibleCurrentChapter;
   const doJump = () => {
