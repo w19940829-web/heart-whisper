@@ -1,0 +1,15 @@
+{
+  "name": "心語漫遊",
+  "short_name": "心語",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fdfbf7",
+  "theme_color": "#a3b1a6",
+  "icons": [
+    {
+      "src": "app-icon.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png"
+    }
+  ]
+}

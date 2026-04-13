@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#fdfaf6" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="心語漫遊" />
+  <title>心語漫遊 · 金句記憶教練</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" type="image/png" href="app-icon.png" />
+  <link rel="apple-touch-icon" href="app-icon.png" />
+  <link rel="manifest" href="manifest.json" />
+  <!-- Google Fonts: Inter & Noto Serif TC for elegant typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Serif+TC:wght@400;600;700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+  <!-- Open Source Handwriting Fonts: LXGW WenKai & ChenYuluoyan -->
+  <link href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-tc-webfont@1.7.0/style.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/gh/max32002/ChenYuluoyan-Thin-Monospaced@1/WebFont/ChenYuluoyan-Thin.css" rel="stylesheet">
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- html2canvas for share feature -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+<body>
+
+  <!-- App Wrapper -->
+  <div id="app">
+    
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <span class="logo-icon"><i class="ph-fill ph-leaf"></i></span>
+        <span class="logo-text">心語漫遊</span>
+      </div>
+      <button class="icon-btn" onclick="openSettings()" aria-label="Settings"><i class="ph ph-gear"></i></button>
+    </header>
+
+    <!-- MAIN VIEWS CONTAINER -->
+    <main class="view-container">
+      
+      <!-- ====================== -->
+      <!-- VIEW: HOME / DASHBOARD -->
+      <!-- ====================== -->
+      <section class="view active" id="view-home">
+        <div class="hero-section">
+          <div class="hero-greeting">今天想要梳理心情嗎？</div>
+          <div class="hero-sub">大腦喜歡輕輕地複習，慢慢來就好。</div>
+        </div>
+
+        <!-- Section: 靈魂日記 (置頂) -->
+        <div class="dashboard-section-title"><i class="ph-fill ph-notebook"></i> 靈魂日記</div>
+        <div class="card" onclick="openTimeline()">
+          <div class="card-icon" style="background:linear-gradient(135deg,#c4a3b1,#a67a8e); color:#fff;"><i class="ph-fill ph-clock-countdown"></i></div>
+          <div class="card-content">
+            <div class="card-title">時間軸日記</div>
+            <div class="card-desc">回顧你的靈修足跡與心境變化</div>
+          </div>
+          <div class="card-action"><i class="ph-bold ph-caret-right"></i></div>
+        </div>
+
+        
+        <!-- Section 3: 情緒急救 -->
+        <div class="dashboard-section-title"><i class="ph-fill ph-pill"></i> 情緒急救</div>
+
+        <div class="card" style="background:var(--accent-calm); color:#fff;" onclick="openGacha()">
+          <div class="card-icon" style="background:rgba(255,255,255,0.2);"><i class="ph-fill ph-crystal-ball"></i></div>
+          <div class="card-content">
+            <div class="card-title">每日一籤 2.0</div>
+            <div class="card-desc" style="color:rgba(255,255,255,0.8);"><span id="fortune-today-label">選一個心情，抓一張屬於你的籤</span></div>
+          </div>
+          <div class="card-action" style="color:#fff;"><i class="ph-bold ph-arrow-right"></i></div>
+        </div>
+
+        <!-- Section 3: 收納與尋寶 -->
+        <div class="dashboard-section-title"><i class="ph-fill ph-books"></i> 金句與工具</div>
+        <div class="card add-card" onclick="switchView('view-add')">
+          <div class="card-icon"><i class="ph-fill ph-sparkle"></i></div>
+          <div class="card-content">
+            <div class="card-title">採集新金句</div>
+            <div class="card-desc">將觸動你的話語收編，轉化為情緒工具</div>
+          </div>
+          <div class="card-action"><i class="ph-bold ph-plus"></i></div>
+        </div>
+
+        <div class="card" onclick="openLibrary()">
+          <div class="card-icon"><i class="ph-fill ph-folders"></i></div>
+          <div class="card-content">
+            <div class="card-title">我的金句庫</div>
+            <div class="card-desc">回顧所有被收編的語錄與錨點</div>
+          </div>
+          <div class="card-action"><i class="ph-bold ph-caret-right"></i></div>
+        </div>
+
+        <!-- Section: 讀經 -->
+        <div class="dashboard-section-title"><i class="ph-fill ph-book-open-text"></i> 讀經默想 <span id="bible-streak-display" class="streak-badge" style="display:none;"></span></div>
+        <div class="card" onclick="openBible()">
+          <div class="card-icon" style="background:linear-gradient(135deg,#d4a96a,#b8844a); color:#fff;"><i class="ph-fill ph-book-open-text"></i></div>
+          <div class="card-content">
+            <div class="card-title">聖經閱讀</div>
+            <div class="card-desc">新標點和合本（神版）· 全書66卷離線實用</div>
+          </div>
+          <div class="card-action"><i class="ph-bold ph-caret-right"></i></div>
+        </div>
+        <!-- Daily Verse Preview -->
+        <div class="daily-verse-preview-card" id="daily-verse-preview" style="display:none;" onclick="openBible()">
+          <div class="dv-label">📖 今日經文</div>
+          <div class="dv-text"></div>
+        </div>
+
+
+
+        
+        <!-- App Control -->
+        <div style="margin-top: 24px; padding: 0;">
+          <button class="secondary-btn" id="btn-force-update" onclick="forceAppUpdate()" style="width: 100%; border: 1.5px solid var(--border-color); background: var(--bg-primary); display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <i class="ph-bold ph-arrows-clockwise"></i> 強制更新 APP 版本
+          </button>
+          <p style="font-size: 0.72rem; color: var(--text-secondary); text-align: center; margin-top: 8px;">當畫面卡在舊版時，點擊直接抓取雲端最新版</p>
+        </div>
+      </section>
+
+      <!-- ====================== -->
+      <!-- VIEW: TIMELINE JOURNAL  -->
+      <!-- ====================== -->
+      <section class="view" id="view-timeline">
+        <div class="view-header">
+          <button class="back-btn" onclick="switchView('view-home')"><i class="ph-bold ph-caret-left"></i> 返回</button>
+          <div style="font-weight:600; font-size:1rem;">📔 靈魂日記</div>
+        </div>
+        <div id="timeline-container" class="timeline-container">
+          <!-- Rendered by JS -->
+        </div>
+      </section>
+
+      <!-- ====================== -->
+      <!-- VIEW: BIBLE READER      -->
+      <!-- ====================== -->
+      <section class="view" id="view-bible">
+        <div class="view-header">
+          <button class="back-btn" id="bible-back-btn" onclick="bibileNavBack()"><i class="ph-bold ph-caret-left"></i> <span id="bible-back-label">返回</span></button>
+          <div class="bible-nav-info" id="bible-nav-info"></div>
+        </div>
+
+        <!-- Book Picker -->
+        <div id="bible-book-picker" class="bible-book-picker">
+          <!-- Bookmark banner -->
+          <div id="bible-bookmark-banner" class="bible-bookmark-banner" style="display:none;"></div>
+          
+          <!-- Search Bar -->
+          <div class="bible-search-bar">
+            <input type="search" id="bible-search-input" class="bible-search-input" placeholder="🔍 搜尋全書關鍵字..." oninput="if(!this.value)document.getElementById('bible-search-results').innerHTML=''" onkeydown="if(event.key==='Enter')bibleSearch()">
+            <button class="bible-search-btn" onclick="bibleSearch()">搜尋</button>
+          </div>
+          <div id="bible-search-results" class="bible-search-results"></div>
+
+          <!-- Picker Tabs -->
+          <div class="bible-picker-tabs" style="display: none;">
+            <button class="bible-picker-tab active" id="bible-picker-tab-books" onclick="bibleShowBookPicker()">📖 書卷選擇</button>
+            <button class="bible-picker-tab" id="bible-picker-tab-notes" onclick="bibleShowNotesOverview()">📓 我的筆記</button>
+          </div>
+
+          <!-- Book Lists -->
+          <div id="bible-book-lists">
+            <div class="bible-testament-label">📖 舊約 (39卷)</div>
+            <div class="bible-book-grid" id="bible-ot-grid"></div>
+            <div class="bible-testament-label" style="margin-top:24px;">✨ 新約 (27卷)</div>
+            <div class="bible-book-grid" id="bible-nt-grid"></div>
+          </div>
+
+          <!-- Notes Overview -->
+          <div id="bible-notes-overview" style="display:none;">
+            <div class="bible-notes-search-wrap">
+              <input type="search" id="bible-notes-search" class="bible-search-input" placeholder="搜尋筆記內容..." oninput="bibleFilterNotes()">
+            </div>
+            <div id="bible-notes-overview-list"></div>
+          </div>
+        </div>
+
+        <!-- Chapter Picker -->
+        <div id="bible-chapter-picker" class="bible-chapter-picker" style="display:none;">
+          <h2 class="view-title" id="bible-chapter-title"></h2>
+          <div class="bible-chapter-grid" id="bible-chapter-grid"></div>
+        </div>
+
+        <!-- Reader -->
+        <div id="bible-reader" style="display:none; padding-bottom: 24px;">
+          <div class="bible-reader-canvas">
+            <div class="bible-chapter-heading" id="bible-reader-heading"></div>
+            <div id="bible-verse-list" class="bible-verse-list"></div>
+            
+            <!-- Chapter Nav Buttons -->
+            <div class="bible-chapter-nav-container">
+              <button class="bible-chapter-nav-btn prev" id="bible-prev-btn" onclick="bibleGoPrevChapter()" style="display:none;">‹ 上一章</button>
+              <button class="bible-chapter-nav-btn next" id="bible-next-btn" onclick="bibleGoNextChapter()" style="display:none;">下一章 ›</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="bible-loading" style="display:none; text-align:center; padding:60px 0;">
+          <div class="glow-orb" style="margin:0 auto 20px;"></div>
+          <p style="color:var(--text-secondary);">正在載入聖經全書...<br><small>首次載入需幾秒鐘</small></p>
+        </div>
+
+        <!-- Notes Bottom Sheet -->
+        <div id="bible-bottom-sheet" class="bible-bottom-sheet" style="transform: translateY(100%);">
+          <div class="bible-bottom-sheet-handle" onclick="toggleBibleBottomSheet()"></div>
+          <div class="bible-bottom-tabs">
+            <button class="bible-bottom-tab active" onclick="switchBottomTab('chapter')" id="tab-chapter">本章筆記</button>
+            <button class="bible-bottom-tab" onclick="switchBottomTab('recent')" id="tab-recent">最近筆記</button>
+          </div>
+          <div class="bible-bottom-content" id="bottom-sheet-content"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-add">
+        <div class="view-header">
+          <button class="back-btn" onclick="switchView('view-home')"><i class="ph-bold ph-caret-left"></i> 隨時返回</button>
+        </div>
+        
+        <h2 class="view-title">將觸動化為工具</h2>
+        <p class="view-subtitle">請將你想消化的金句貼在下方，我會幫你拆解它。</p>
+
+        <div style="position:relative;">
+          <textarea id="quote-input" class="modern-textarea" rows="4" placeholder="例如：追求完美是拖延的偽裝..."></textarea>
+          <button class="mic-btn" id="mic-btn-quote" onclick="startVoiceInput('quote-input', 'mic-btn-quote')" title="語音輸入">
+            <i class="ph-fill ph-microphone"></i>
+          </button>
+        </div>
+        <!-- The add actions should be moved down since it's 1-step now -->
+
+        <!-- Step 2: Manual Result (Anchor / Reflection) -->
+        <div class="reflection-section" id="reflection-section" style="margin-top: 16px;">
+          
+          <div class="reflection-prompt-box">
+            
+            <h3 class="reflection-title" style="margin-top: 0;">2. 選擇這句話的核心分類</h3>
+            <select id="manual-category-select" class="form-input" style="width: 100%; font-weight: 700; color: var(--text-dark); background-color: var(--croc-foam); border: 1.5px solid var(--croc-mist); margin-bottom: 24px;">
+              <!-- 透過 JS 動態注入 -->
+            </select>
+
+            <h3 class="reflection-title">3. 選擇這句話的情緒錨點</h3>
+            <p class="reflection-desc">這句話最適合在什麼情境下拿出來用？</p>
+            
+            <div class="emotion-vocab-grid" id="emotion-vocab-grid" style="display:block;">
+              <!-- Full 8×4 emotion grid injected here -->
+            </div>
+            
+            <textarea id="custom-reflection" class="modern-textarea reflection-input" rows="2" placeholder="或者，隨意寫下你的感受... (可略)"></textarea>
+            
+            <button class="primary-btn confirm-btn" onclick="saveQuote()">
+              <i class="ph-fill ph-floppy-disk"></i> 儲存並成為我的工具
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================== -->
+      <!-- VIEW: CARD BUILDER     -->
+      <!-- ====================== -->
+      <!-- VIEW: LIBRARY          -->
+      <!-- ====================== -->
+      <section class="view" id="view-library">
+        <div class="view-header">
+          <button class="back-btn" onclick="switchView('view-home')"><i class="ph-bold ph-caret-left"></i> 返回</button>
+        </div>
+        <h2 class="view-title">我的情緒工具箱</h2>
+        
+        <div class="library-filter-wrapper" style="margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px;">
+          <input type="text" id="library-search" class="modern-input" placeholder="🔍 搜尋金句或標籤..." onkeyup="renderLibrary(document.getElementById('library-category-select').value)">
+          <select id="library-category-select" class="form-input" style="width: 100%; font-weight: 700; color: var(--text-dark); background-color: var(--croc-foam); border: 1.5px solid var(--croc-mist);" onchange="renderLibrary(this.value)">
+            <option value="全部">📂 全部金句</option>
+            <option value="📖 聖經">📖 聖經收藏</option>
+            <option value="安慰共感">🫂 安慰共感</option>
+            <option value="轉念重塑">🔄 轉念重塑</option>
+            <option value="推動行動">💪 推動行動</option>
+            <option value="自我疼惜">🤗 自我疼惜</option>
+            <option value="信仰連結">🙏 信仰連結</option>
+            <option value="成長提醒">🌱 成長提醒</option>
+          </select>
+        </div>
+        
+        <div class="library-grid" id="library-grid">
+          <!-- Cards injected here -->
+        </div>
+      </section>
+
+      <!-- ====================== -->
+      <!-- VIEW: GACHA 2.0        -->
+      <!-- ====================== -->
+      <section class="view" id="view-gacha">
+        <div class="view-header">
+          <button class="back-btn" onclick="switchView('view-home')"><i class="ph-bold ph-x"></i> 取消</button>
+        </div>
+
+        <!-- Step 1: Emotion Picker -->
+        <div id="gacha-emotion-picker">
+          <div class="gacha-prompt" id="gacha-prompt-text">深呼吸... 告訴我現在的心情？</div>
+          <div class="gacha-emotion-grid" id="gacha-emotion-grid">
+            <!-- Injected by JS: emotion bubbles -->
+          </div>
+          <button class="gacha-random-btn" onclick="drawGacha(null)">🎲 我說不準，隨機為我選</button>
+        </div>
+
+        <!-- Step 2: Glow animation -->
+        <div class="gacha-glow-container" id="gacha-glow-container" style="display:none;">
+          <div class="gacha-glow-orb" id="gacha-glow-orb"></div>
+        </div>
+
+        <!-- Step 3: Result card -->
+        <div class="gacha-result" id="gacha-result">
+          <div class="gacha-card" id="gacha-card">
+            <div class="gacha-card-header">
+              <div class="gacha-card-badges">
+                <span class="lib-badge cat-badge" id="gacha-cat-badge"></span>
+              </div>
+              <div class="gacha-card-emoji" id="gacha-emoji"></div>
+            </div>
+            <div class="gacha-card-quote" id="gacha-quote-display"></div>
+            <div class="gacha-card-anchor" id="gacha-anchor-display"></div>
+            <div class="gacha-card-actions">
+              <button class="gacha-action-btn" onclick="playGachaTTS()">🔊 朗讀</button>
+              <button class="gacha-action-btn primary" onclick="redrawGacha()">🎲 再來一張</button>
+              <button class="gacha-action-btn share-btn" onclick="saveFortuneToday()">💫 珍藏</button>
+            </div>
+
+          </div>
+        </div>
+
+
+      </section>
+
+      <!-- ====================== -->
+      <!-- VIEW: MAILBOX          -->
+
+
+    </main>
+
+    <!-- ====================== -->
+    <!-- VIEW: SLIDESHOW (Full) -->
+    <!-- ====================== -->
+    <section id="view-slideshow">
+      <button class="slide-close" onclick="closeSlideshow()"><i class="ph-bold ph-x"></i></button>
+      <div class="slide-content">
+        <div class="slide-anchor-label" id="slide-anchor-label">焦慮時</div>
+        <div class="slide-quote" id="slide-quote-display"></div>
+        <div class="slide-nav">
+          <button class="slide-nav-btn" onclick="prevSlide()"><i class="ph-bold ph-caret-left"></i></button>
+          <button class="tts-btn large" style="background:rgba(255,255,255,0.1); color:#fff; border-color:rgba(255,255,255,0.2);" id="slide-tts-btn"><i class="ph-fill ph-speaker-high"></i></button>
+          <button class="slide-nav-btn" onclick="nextSlide()"><i class="ph-bold ph-caret-right"></i></button>
+        </div>
+      </div>
+      <div style="position:absolute; bottom:20px; color:rgba(255,255,255,0.3); font-size:0.8rem;" id="slide-counter">1 / 5</div>
+    </section>
+
+    <!-- ====================== -->
+    <!-- SETTINGS MODAL         -->
+    <!-- ====================== -->
+    <div class="modal-overlay" id="settings-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>設定</h3>
+          <button class="close-btn" onclick="closeSettings()"><i class="ph-bold ph-x"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group" style="margin-top: 24px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 16px;">
+            <label>資料備份與管理 <i class="ph-bold ph-database"></i></label>
+            <p class="help-text">防止心血結晶遺失，建議將專屬金句匯出為本機檔案。若重新安裝或換設備，可上傳還原。</p>
+            <div style="display:flex; gap:12px; margin-top:12px;">
+              <button class="primary-btn" style="flex:1; background:var(--bg-secondary); border:1px solid rgba(0,0,0,0.1); color:var(--text-primary);" onclick="exportData()"><i class="ph-bold ph-download-simple"></i> 匯出備份</button>
+              <button class="primary-btn" style="flex:1; background:var(--bg-secondary); border:1px solid rgba(0,0,0,0.1); color:var(--text-primary);" onclick="document.getElementById('import-file').click()"><i class="ph-bold ph-upload-simple"></i> 匯入還原</button>
+              <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+            </div>
+          </div>
+
+          <!-- NEW: Labels Management (Categories & Emotions) -->
+          <div class="form-group" style="margin-top: 24px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 16px;">
+            <label>AI 標籤設定 (上限10/15) <i class="ph-bold ph-tag"></i></label>
+            <p class="help-text">自訂 AI 如何針對您的金句進行自動分類與情緒歸納。修改後立即生效。</p>
+            <div style="display:flex; gap:12px; margin-top:12px;">
+              <button class="primary-btn" style="flex:1; background:var(--croc-foam); border:1px solid var(--croc-mist); color:var(--text-dark);" onclick="openCategoryManager()"><i class="ph-bold ph-folders"></i> 管理分類</button>
+              <button class="primary-btn" style="flex:1; background:var(--croc-foam); border:1px solid var(--croc-mist); color:var(--text-dark);" onclick="openEmotionManager()"><i class="ph-bold ph-heartbeat"></i> 管理情緒</button>
+            </div>
+            <button class="primary-btn" style="width:100%; margin-top:12px; background:transparent; border:1px dashed rgba(0,0,0,0.2); color:var(--text-secondary);" onclick="openFruitReference()">💡 檢視：聖靈果子與情緒對照表 (觸發情境靈感)</button>
+          </div>
+
+          <div class="sys-prompt-preview" style="margin-top: 24px;">
+            <small>AI 教練系統設定：<br>專精認知心理學、ADHD 友善與克服完美主義。</small>
+          </div>
+
+          <button class="primary-btn" onclick="saveSettings()">完成</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- ====================== -->
+    <!-- TAGS MANAGER MODAL     -->
+    <!-- ====================== -->
+    <div class="modal-overlay" id="tags-modal" style="z-index: 1100;">
+      <div class="modal-content" style="max-height: 80vh; display: flex; flex-direction: column;">
+        <div class="modal-header">
+          <h3 id="tags-modal-title">標籤管理</h3>
+          <button class="close-btn" onclick="closeTagsManager()"><i class="ph-bold ph-x"></i></button>
+        </div>
+        <div class="modal-body" style="overflow-y: auto; flex:1;">
+          <div id="tags-list-container" style="display:flex; flex-direction: column; gap:12px;">
+            <!-- dynamic content injected here -->
+          </div>
+          <button class="primary-btn" id="btn-add-new-tag" onclick="addNewTag()" style="margin-top: 16px; width: 100%; border: 1.5px dashed var(--croc-mist); background: transparent; color: var(--text-dark);">
+            <i class="ph-bold ph-plus"></i> 新增標籤
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- ====================== -->
+    <!-- GLOBAL AMBIENT PLAYER  -->
+    <!-- ====================== -->
+    <div id="yt-player-container" style="position:absolute; width:0; height:0; top:-9999px; left:-9999px;"></div>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    
+    <div id="ambient-widget" class="ambient-widget">
+      <!-- Expand button -->
+      <button class="ambient-toggle" id="ambient-toggle-btn" onclick="toggleAmbientPanel()">
+        <i class="ph-bold ph-headphones" id="ambient-main-icon"></i>
+      </button>
+      
+      <!-- Panel content -->
+      <div class="ambient-panel glass-panel" id="ambient-panel">
+        <div class="ambient-header">
+          <small>🎧 沉浸靈魂頻段</small>
+        </div>
+        
+        <!-- Collapsible Dropdown -->
+        <button class="ambient-dropdown-btn" id="ambient-dropdown-btn" onclick="toggleTracksList()">
+          <span>🎵 選擇播放頻道...</span>
+          <i class="ph-bold ph-caret-down"></i>
+        </button>
+        
+        <div class="ambient-tracks hidden" id="ambient-tracks-container">
+          <!-- buttons injected by js -->
+        </div>
+        
+        <div class="ambient-volume">
+          <i class="ph-fill ph-speaker-low"></i>
+          <input type="range" id="ambient-volume-slider" min="0" max="1" step="0.05" value="0.3" oninput="changeAmbientVolume()">
+          <i class="ph-fill ph-speaker-high"></i>
+        </div>
+        <button class="ambient-stop-btn" onclick="stopAmbient()"><i class="ph-bold ph-stop"></i> 停止播放</button>
+      </div>
+    </div>
+    
+    <!-- ====================== -->
+    <!-- FRUIT OF SPIRIT MODAL  -->
+    <!-- ====================== -->
+    <div class="modal-overlay" id="fruit-ref-modal" style="z-index: 1200;">
+      <div class="modal-content" style="max-height: 80vh; display: flex; flex-direction: column;">
+        <div class="modal-header">
+          <h3 style="font-size:1.1rem;">聖靈的果子 vs 狀態失控對照表</h3>
+          <button class="close-btn" onclick="closeFruitReference()"><i class="ph-bold ph-x"></i></button>
+        </div>
+        <div class="modal-body" style="overflow-y:auto; padding: 16px 24px;">
+          <p class="help-text" style="margin-bottom:16px;">設定觸發情境時的靈感面板。我們其實是用這 9 種果子，去對治大腦相反的「失控/肉體狀態」：</p>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">1. 仁愛 (Love) ↔ 自私與冷漠</div>
+              <small style="color:var(--text-secondary);">困在自我中心，無法顧及他人，或因受傷而對世界築起高牆。</small>
+            </div>
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">2. 喜樂 (Joy) ↔ 苦毒與絕望</div>
+              <small style="color:var(--text-secondary);">長期的憂鬱、抱怨與覺得世界不公平的受害者心態。</small>
+            </div>
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">3. 和平 (Peace) ↔ 焦慮與紛爭</div>
+              <small style="color:var(--text-secondary);">大腦轉個不停缺乏安全感（焦慮），或是不斷起衝突（紛爭）。</small>
+            </div>
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">4. 忍耐 (Patience) ↔ 急躁與易怒</div>
+              <small style="color:var(--text-secondary);">想要立刻看到結果的焦慮，或是計畫被打斷時爆發的怒氣。</small>
+            </div>
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">5. 恩慈 (Kindness) ↔ 嚴苛與刻薄</div>
+              <small style="color:var(--text-secondary);">對別人的苛刻，或包含強烈自我否定的完美主義。</small>
+            </div>
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">6. 良善 (Goodness) ↔ 惡意與算計</div>
+              <small style="color:var(--text-secondary);">失去單純動機，凡事以防衛或攻擊的思維出發。</small>
+            </div>
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">7. 信實 (Faithfulness) ↔ 動搖與背棄</div>
+              <small style="color:var(--text-secondary);">三分鐘熱度、過度承諾，或害怕失敗而在中途放棄。</small>
+            </div>
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">8. 溫柔 (Gentleness) ↔ 驕傲與強勢</div>
+              <small style="color:var(--text-secondary);">想強硬地掌控一切，不容許失控，內心實則充滿恐懼。</small>
+            </div>
+            <div style="padding:12px; background:var(--bg-secondary); border-radius:12px;">
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">9. 節制 (Self-control) ↔ 放縱與衝動失控</div>
+              <small style="color:var(--text-secondary);">滑手機停不下來、衝動購物後又深感懊悔的無力狀態。</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+  </div>
+
+  <!-- V2 Modular JS -->
+  <script src="js/storage.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/library.js"></script>
+  <script src="js/gacha.js"></script>
+  
+  <!-- Bible Stats Edit Modal -->
+  <div class="modal-overlay" id="modal-bible-stats" onclick="closeBibleStatsEdit(event)">
+    <div class="modal-content" style="max-width: 320px;">
+      <h3 style="margin-top:0; color:var(--text-primary);">✏️ 修改進度紀錄</h3>
+      <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:20px;">依照您的實際情況（如紙本閱讀等），自由調整統計數據。</p>
+      
+      <label style="display:block; text-align:left; font-size:0.85rem; color:var(--text-secondary); margin-bottom:6px;">🔥 連續靈修天數</label>
+      <input type="number" id="edit-streak-count" class="modern-input" min="0" style="width:100%; box-sizing:border-box; margin-bottom:16px;">
+      
+      <label style="display:block; text-align:left; font-size:0.85rem; color:var(--text-secondary); margin-bottom:6px;">📚 額外紙本已讀章數</label>
+      <input type="number" id="edit-paper-chapters" class="modern-input" min="0" style="width:100%; box-sizing:border-box; margin-bottom:24px;">
+
+      <div style="display:flex; justify-content:flex-end; gap:12px;">
+        <button class="btn-cancel" onclick="document.getElementById('modal-bible-stats').classList.remove('active')">取消</button>
+        <button class="btn-save" onclick="saveBibleStatsEdit()">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script src="bible-reader.js"></script>
+  
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+          .catch(err => console.error('SW registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>
