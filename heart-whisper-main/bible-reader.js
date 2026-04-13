@@ -111,7 +111,6 @@ function _bibleRenderBookPicker() {
     banner.style.gap = '8px';
     banner.style.alignItems = 'flex-start';
     
-    const count = getBibleStreakCount();
     const paperCount = getBiblePaperChapters();
     const readLog = getBibleReadLog();
     const currentYear = new Date().getFullYear().toString();
