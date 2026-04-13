@@ -244,7 +244,11 @@ function playTTS(text) {
     return;
   }
   window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
+  
+  // Filter out brackets, quotes, and common punctuation that TTS systems might read aloud weirdly
+  const cleanText = text.replace(/[<>＜＞《》【】\[\]『』「」]/g, '');
+  
+  const utterance = new SpeechSynthesisUtterance(cleanText);
   utterance.lang = 'zh-TW';
   utterance.rate = 0.9;
   utterance.pitch = 1.0;

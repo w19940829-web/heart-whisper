@@ -291,7 +291,8 @@ function renderTimeline() {
       icon: '🎴',
       title: '每日一籤',
       content: f.quoteText || '(已刪除的金句)',
-      timestamp: new Date(f.date).getTime()
+      timestamp: new Date(f.date).getTime(),
+      deleteId: idx
     });
   });
 
@@ -306,7 +307,8 @@ function renderTimeline() {
           icon: '📌',
           title: '便利貼',
           content: `「${q.original.substring(0, 30)}...」\n→ ${q.personal_note}`,
-          timestamp: q.addedAt || 0
+          timestamp: q.addedAt || 0,
+          deleteId: q.id
         });
       }
     });
@@ -323,7 +325,8 @@ function renderTimeline() {
         icon: '📖',
         title: '讀經打卡',
         content: key.replace('_', ' 第') + '章',
-        timestamp: new Date(dateStr).getTime()
+        timestamp: new Date(dateStr).getTime(),
+        deleteId: key
       });
     }
   });
@@ -376,7 +379,10 @@ function renderTimeline() {
           <div class="timeline-entry timeline-${item.type}">
             <div class="timeline-dot">${item.icon}</div>
             <div class="timeline-body">
-              <div class="timeline-entry-title">${item.title}</div>
+              <div class="timeline-entry-title" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>${item.title}</span>
+                ${item.type !== 'streak' ? `<button onclick="deleteTimelineEntry('${item.type}', '${item.deleteId}')" style="background:none;border:none;color:var(--text-secondary);opacity:0.6;font-size:1.05rem;cursor:pointer;padding:0;" title="刪除"><i class="ph-bold ph-trash"></i></button>` : ''}
+              </div>
               <div class="timeline-entry-content">${item.content}</div>
             </div>
           </div>`;
@@ -386,4 +392,32 @@ function renderTimeline() {
     });
 
   container.innerHTML = html;
+}
+
+function deleteTimelineEntry(type, id) {
+  if (!confirm('確定要刪除這筆日記紀錄嗎？這無法復原。')) return;
+
+  if (type === 'fortune') {
+    const fortunes = JSON.parse(localStorage.getItem('hw_fortune') || '[]');
+    fortunes.splice(parseInt(id), 1);
+    localStorage.setItem('hw_fortune', JSON.stringify(fortunes));
+  } else if (type === 'note') {
+    const idx = quotesDb.findIndex(q => String(q.id) === String(id));
+    if (idx !== -1) {
+      quotesDb[idx].personal_note = '';
+      localStorage.setItem('hw_quotes', JSON.stringify(quotesDb));
+    }
+  } else if (type === 'bible') {
+    const readLog = JSON.parse(localStorage.getItem('hw_bible_read_log') || '{}');
+    delete readLog[id];
+    localStorage.setItem('hw_bible_read_log', JSON.stringify(readLog));
+  }
+
+  // Refresh views
+  renderTimeline();
+  if (typeof updateDashboard === 'function') updateDashboard();
+  if (typeof _bibleRenderBookPicker === 'function' && document.getElementById('bible-book-picker')?.style.display !== 'none') {
+    _bibleRenderBookPicker();
+  }
+  if (typeof showToast === 'function') showToast('🗑️ 已刪除該筆紀錄');
 }

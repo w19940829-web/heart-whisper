@@ -1011,6 +1011,15 @@ body {
 
 /* --- Gacha View (Companion Card) --- */
 #view-gacha {
+  /* Override CSS variables to force light mode for this specific view */
+  --bg-primary: #fdfbf7;
+  --bg-secondary: #f4f1ea;
+  --bg-card: #ffffff;
+  --text-primary: #3d3b38;
+  --text-secondary: #76736e;
+  --text-dark: #2c2a26;
+  --border-color: rgba(0,0,0,0.06);
+  
   text-align: center;
   padding-top: 20px;
   position: relative;
@@ -2379,7 +2388,12 @@ body {
 .bible-note-trigger:active, .bible-bookmark-btn:active, .bible-set-bookmark-btn:active { transform: scale(1.3); }
 
 /* Yearly Stats */
-.bible-year-stats { font-weight: 600; color: var(--text-secondary); font-size: 0.9rem; }
+.bible-year-stats { font-weight: 600; color: var(--text-secondary); font-size: 0.9rem; display: flex; align-items: center; gap: 6px; }
+.bible-edit-stats-btn {
+  background: none; border: none; font-size: 1rem; cursor: pointer; opacity: 0.6;
+  padding: 4px; border-radius: 50%; transition: all 0.2s;
+}
+.bible-edit-stats-btn:hover { opacity: 1; background: var(--bg-secondary); }
 
 /* Note Dot */
 .bible-note-dot { color: #e8a44a; font-size: 0.6rem; vertical-align: super; margin-left: 2px; }

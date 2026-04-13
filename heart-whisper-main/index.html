@@ -148,10 +148,7 @@
         <div id="bible-book-picker" class="bible-book-picker">
           <!-- Bookmark banner -->
           <div id="bible-bookmark-banner" class="bible-bookmark-banner" style="display:none;"></div>
-
-          <!-- 年度讀經熱力圖 -->
-          <div id="bible-heatmap-container"></div>
-
+          
           <!-- Search Bar -->
           <div class="bible-search-bar">
             <input type="search" id="bible-search-input" class="bible-search-input" placeholder="🔍 搜尋全書關鍵字..." oninput="if(!this.value)document.getElementById('bible-search-results').innerHTML=''" onkeydown="if(event.key==='Enter')bibleSearch()">
@@ -208,6 +205,15 @@
           <p style="color:var(--text-secondary);">正在載入聖經全書...<br><small>首次載入需幾秒鐘</small></p>
         </div>
 
+        <!-- Notes Bottom Sheet -->
+        <div id="bible-bottom-sheet" class="bible-bottom-sheet" style="transform: translateY(100%);">
+          <div class="bible-bottom-sheet-handle" onclick="toggleBibleBottomSheet()"></div>
+          <div class="bible-bottom-tabs">
+            <button class="bible-bottom-tab active" onclick="switchBottomTab('chapter')" id="tab-chapter">本章筆記</button>
+            <button class="bible-bottom-tab" onclick="switchBottomTab('recent')" id="tab-recent">最近筆記</button>
+          </div>
+          <div class="bible-bottom-content" id="bottom-sheet-content"></div>
+        </div>
       </section>
 
       <section class="view" id="view-add">
@@ -506,13 +512,31 @@
   </div>
 
   <!-- V2 Modular JS -->
-  <script src="js/storage.js?v=2.0"></script>
-  <script src="js/audio.js?v=2.0"></script>
-  <script src="js/library.js?v=2.0"></script>
-  <script src="js/gacha.js?v=2.0"></script>
-  <script src="js/heatmap.js?v=2.0"></script>
-  <script src="app.js?v=2.0"></script>
-  <script src="bible-reader.js?v=2.0"></script>
+  <script src="js/audio.js" defer></script>
+  <script src="js/library.js" defer></script>
+  <script src="js/gacha.js" defer></script>
+  
+  <!-- Bible Stats Edit Modal -->
+  <div class="modal-overlay" id="modal-bible-stats" onclick="closeBibleStatsEdit(event)">
+    <div class="modal-content" style="max-width: 320px;">
+      <h3 style="margin-top:0; color:var(--text-primary);">✏️ 修改進度紀錄</h3>
+      <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:20px;">依照您的實際情況（如紙本閱讀等），自由調整統計數據。</p>
+      
+      <label style="display:block; text-align:left; font-size:0.85rem; color:var(--text-secondary); margin-bottom:6px;">🔥 連續靈修天數</label>
+      <input type="number" id="edit-streak-count" class="modern-input" min="0" style="width:100%; box-sizing:border-box; margin-bottom:16px;">
+      
+      <label style="display:block; text-align:left; font-size:0.85rem; color:var(--text-secondary); margin-bottom:6px;">📚 額外紙本已讀章數</label>
+      <input type="number" id="edit-paper-chapters" class="modern-input" min="0" style="width:100%; box-sizing:border-box; margin-bottom:24px;">
+
+      <div style="display:flex; justify-content:flex-end; gap:12px;">
+        <button class="btn-cancel" onclick="document.getElementById('modal-bible-stats').classList.remove('active')">取消</button>
+        <button class="btn-save" onclick="saveBibleStatsEdit()">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script src="bible-reader.js"></script>
   
   <script>
     if ('serviceWorker' in navigator) {
